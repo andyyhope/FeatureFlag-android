@@ -1,0 +1,46 @@
+# Yewki detekt config — extends detekt's defaults (buildUponDefaultConfig = true in build.gradle.kts).
+# Only the deltas live here: the noisy / Compose-hostile rules are turned off so the gate stays
+# high-signal; everything still active is grandfathered per-module by detekt-baseline.xml at adoption,
+# so detekt only fails on NEW violations.
+
+naming:
+  FunctionNaming:
+    # @Composable functions are PascalCase by convention — don't flag them (was 168 baselined findings).
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    ignoreAnnotated: ['Composable']
+  MatchingDeclarationName:
+    # Screen files legitimately hold the screen + its @Preview + private helpers in one file.
+    active: false
+
+complexity:
+  LongMethod:
+    active: false # Compose @Composable screens are legitimately long
+  LongParameterList:
+    active: false # Compose composables + Hilt constructors carry many params by design
+  TooManyFunctions:
+    active: false
+  CyclomaticComplexMethod:
+    active: false
+  NestedBlockDepth:
+    active: false
+
+style:
+  MagicNumber:
+    active: false # numeric literals (sizes, thresholds, colours) are pervasive + low-signal
+  ReturnCount:
+    active: false
+  ForbiddenComment:
+    active: false # TODO/FIXME are allowed
+  UnusedPrivateMember:
+    active: false # false-positives on Compose previews / @Serializable members
+  MaxLineLength:
+    active: false # formatting handles line length where it matters
+
+formatting:
+  MaximumLineLength:
+    active: false
+  ArgumentListWrapping:
+    active: false # disagrees with the Compose trailing-lambda style used throughout
+  SpacingBetweenDeclarationsWithComments:
+    active: false # fires on every comment-preceded declaration — contentious + low-signal here
