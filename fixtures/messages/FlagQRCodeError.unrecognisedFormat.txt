@@ -1,0 +1,1 @@
+Not a flag code. A flag code starts with "FFQR1:".

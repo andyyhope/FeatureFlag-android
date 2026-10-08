@@ -1,0 +1,41 @@
+{
+  "exportedAt" : "2026-01-01T09:41:00Z",
+  "formatVersion" : 1,
+  "values" : {
+    "bool-flag" : true,
+    "checkout.apple-pay" : false,
+    "checkout.express.confirmation-delay" : 0.5,
+    "checkout.express.one-tap" : true,
+    "checkout.tier" : "free",
+    "data-flag" : "3q2+7w==",
+    "date-flag" : "2026-01-01T09:41:00Z",
+    "double-flag" : 0.30000000000000004,
+    "endpoints" : "[{\"kind\":\"enterprise\",\"name\":\"prod\",\"note\":\"primary \\\"quoted\\\" / slash\",\"targets\":\"[{\\\"host\\\":\\\"a.example\\\",\\\"port\\\":443},{\\\"host\\\":\\\"b.example\\\",\\\"port\\\":8443}]\",\"url\":\"https://prod.example.com/v1?x=1\",\"weight\":10},{\"kind\":\"pro\",\"name\":\"staging\",\"targets\":\"[]\",\"url\":\"https://staging.example.com\",\"weight\":0},{\"kind\":\"free\",\"name\":\"ünïcode\",\"note\":\"\",\"targets\":\"[]\",\"url\":\"https://example.com/%C3%BC\",\"weight\":-3}]",
+    "float-flag" : 1.1000000238418579,
+    "int-flag" : -7,
+    "level" : 3,
+    "limits" : {
+      "A" : 1,
+      "a9" : 9,
+      "a10" : 10,
+      "z" : 26
+    },
+    "markets" : [
+      "AU",
+      "NZ",
+      "US"
+    ],
+    "matrix" : [
+      [
+
+      ],
+      [
+        true
+      ]
+    ],
+    "string-flag" : "line1\nline2\t\"q\" / é 😀",
+    "tier" : "enterprise",
+    "url-flag" : "https://example.com/path?q=1&r=a%20b#frag",
+    "use-https-only" : true
+  }
+}

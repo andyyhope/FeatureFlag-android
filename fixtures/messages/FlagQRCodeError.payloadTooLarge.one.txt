@@ -1,0 +1,1 @@
+1 override need 3400 characters and a QR code holds 2900. Reset a few, or export JSON instead.

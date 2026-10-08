@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "string-flag",
+      "kind" : "typeMismatch",
+      "message" : "'strings.plain' → string-flag: expected string, got an object with 1 field(s)",
+      "remoteKey" : "strings.plain"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'strings.plain' → string-flag: expected string, got an object with 1 field(s)\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

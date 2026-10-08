@@ -1,0 +1,1 @@
+[{"kind":"free","name":"prod","targets":"[]","url":"https://prod.example.com","weight":1}]

@@ -1,0 +1,5 @@
+Nothing was applied. 3 problems:
+  • 'config.tier' → checkout-tier: "gold" is not one of free, pro
+  • 'featureToggles.onboarding' → new-onboarding: expected bool, got "yes"
+  • 'config.pageSize' → page-size: expected int, got an array of 3
+A remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source.

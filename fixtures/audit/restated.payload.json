@@ -1,0 +1,1 @@
+{"toggles":{"boolean":false},"numbers":{"int":42,"double":0.1},"strings":{"plain":"hello/world \"quoted\""},"dates":{"launch":"2026-01-01T00:00:00Z"},"config":{"endpoint":"https://example.com/a/b?c=d","markets":["AU","NZ"],"endpoints":[{"name":"prod","url":"https://prod.example.com"}]},"tier":"free","featureToggles":{"checkout":{"applePay":true}}}

@@ -1,0 +1,29 @@
+{
+  "problems" : [
+    {
+      "key" : "int-flag",
+      "kind" : "typeMismatch",
+      "message" : "'numbers.int' → int-flag: expected int, got 1.5",
+      "remoteKey" : "numbers.int"
+    },
+    {
+      "key" : "markets",
+      "kind" : "typeMismatch",
+      "message" : "'config.markets' → markets: expected array<string>, got an array of 2",
+      "remoteKey" : "config.markets"
+    },
+    {
+      "key" : "string-flag",
+      "kind" : "typeMismatch",
+      "message" : "'strings.plain' → string-flag: expected string, got 7",
+      "remoteKey" : "strings.plain"
+    },
+    {
+      "key" : "tier",
+      "kind" : "unknownCase",
+      "message" : "'tier' → tier: \"gold\" is not one of free, pro, enterprise",
+      "remoteKey" : "tier"
+    }
+  ],
+  "rejected" : "Nothing was applied. 4 problems:\n  • 'numbers.int' → int-flag: expected int, got 1.5\n  • 'config.markets' → markets: expected array<string>, got an array of 2\n  • 'strings.plain' → string-flag: expected string, got 7\n  • 'tier' → tier: \"gold\" is not one of free, pro, enterprise\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

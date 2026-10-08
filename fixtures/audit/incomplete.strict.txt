@@ -1,0 +1,15 @@
+Flag mapping audit — incomplete.
+  absent (7) — a flag declares this path, the payload has nothing there:
+    • checkout.apple-pay
+    • date-flag
+    • double-flag
+    • endpoints
+    • markets
+    • string-flag
+    • url-flag
+  mismatched (2):
+    • 'toggles.boolean' → bool-flag: expected bool, got "yes"
+    • 'tier' → tier: "gold" is not one of free, pro, enterprise
+  unconsumed (1) — no flag reads these:
+    • config.page_size
+  1 of 10 remotely-overridable flags applied.

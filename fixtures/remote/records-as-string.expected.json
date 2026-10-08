@@ -1,0 +1,22 @@
+{
+  "absent" : [
+    "bool-flag",
+    "int-flag",
+    "double-flag",
+    "string-flag",
+    "date-flag",
+    "url-flag",
+    "markets",
+    "tier",
+    "checkout.apple-pay"
+  ],
+  "applied" : [
+    "endpoints"
+  ],
+  "problems" : [
+
+  ],
+  "values" : {
+    "endpoints" : "[{\"name\":\"x\",\"url\":\"https://x.example\",\"kind\":\"platinum\"}]"
+  }
+}

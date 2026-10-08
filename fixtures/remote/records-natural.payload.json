@@ -1,0 +1,1 @@
+{"config":{"endpoints":[{"name":"prod","url":"https://prod.example.com"},{"name":"edge","url":"https://edge.example","weight":3,"memo":"note","kind":"enterprise","targets":[{"host":"a","port":1}]}]}}

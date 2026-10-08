@@ -1,0 +1,1 @@
+{"numbers":{"int":10000000000,"double":0.30000000000000004},"strings":{"plain":"a much longer string than forty characters\nwith a newline"},"dates":{"launch":"2026-06-01T09:30:00Z"},"config":{"endpoint":"https://remote.example/x","markets":["AU"]}}

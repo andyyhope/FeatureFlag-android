@@ -1,0 +1,4 @@
+Default vs config:
+  every supplied value matches the compiled default.
+  restated (1) — same as the default, could be omitted:
+    • int-flag

@@ -1,0 +1,1 @@
+'ratio' holds an infinity or a NaN, and JSON can represent neither. Use a finite value, or a sentinel the flag's type already has.

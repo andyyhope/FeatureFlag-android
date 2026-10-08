@@ -1,0 +1,1 @@
+{"config":{"endpoints":[{"name":"a","url":"https://a.example","weight":"heavy"}]}}

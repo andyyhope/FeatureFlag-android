@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "bool-flag",
+      "kind" : "typeMismatch",
+      "message" : "'toggles.boolean' → bool-flag: expected bool, got \"line one\\nline two, and then a good deal…\"",
+      "remoteKey" : "toggles.boolean"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'toggles.boolean' → bool-flag: expected bool, got \"line one\\nline two, and then a good deal…\"\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

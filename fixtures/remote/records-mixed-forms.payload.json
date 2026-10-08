@@ -1,0 +1,1 @@
+{"config":{"endpoints":[{"name":"a","url":"https://a.example"},{"name":"b","url":"https://b.example","weight":5,"memo":null,"kind":"enterprise","targets":"[{\"host\":\"h\",\"port\":1}]"},{"name":"c","url":"https://c.example","note":"ignored: read from memo","targets":[{"host":"x","port":2},{"host":"y","port":3}]}]}}

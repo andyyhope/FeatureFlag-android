@@ -1,0 +1,1 @@
+The host did not confirm it handled the signal in time. It may not be running — iOS will not wake a closed app for another app — or it may not be observing this signal's type.

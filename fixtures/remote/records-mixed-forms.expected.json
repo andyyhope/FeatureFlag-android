@@ -1,0 +1,22 @@
+{
+  "absent" : [
+    "bool-flag",
+    "int-flag",
+    "double-flag",
+    "string-flag",
+    "date-flag",
+    "url-flag",
+    "markets",
+    "tier",
+    "checkout.apple-pay"
+  ],
+  "applied" : [
+    "endpoints"
+  ],
+  "problems" : [
+
+  ],
+  "values" : {
+    "endpoints" : "[{\"kind\":\"free\",\"name\":\"a\",\"targets\":\"[]\",\"url\":\"https://a.example\",\"weight\":1},{\"kind\":\"enterprise\",\"name\":\"b\",\"targets\":\"[{\\\"host\\\":\\\"h\\\",\\\"port\\\":1}]\",\"url\":\"https://b.example\",\"weight\":5},{\"kind\":\"free\",\"name\":\"c\",\"targets\":\"[{\\\"host\\\":\\\"x\\\",\\\"port\\\":2},{\\\"host\\\":\\\"y\\\",\\\"port\\\":3}]\",\"url\":\"https://c.example\",\"weight\":1}]"
+  }
+}
