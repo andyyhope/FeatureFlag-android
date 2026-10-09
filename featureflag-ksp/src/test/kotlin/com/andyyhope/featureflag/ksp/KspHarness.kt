@@ -25,12 +25,29 @@ internal class Compiled(private val result: JvmCompilationResult) {
     val problems: String
         get() = result.messages.lines().filter { it.startsWith("e:") || it.startsWith("w:") }.joinToString("\n")
 
-    /** Every error the processor reported, in the order it reported them. */
+    /**
+     * Every error the processor reported, in the order it reported them. Fails on any other error,
+     * which is what invalid generated code would produce.
+     */
     val errors: List<Reported>
-        get() = result.messages.lineSequence()
-            .mapNotNull { REPORTED.matchEntire(it.trim()) }
-            .map { Reported(File(it.groupValues[1]).name, it.groupValues[2].toInt(), it.groupValues[3]) }
-            .toList()
+        get() {
+            val others = result.messages.lines().filter { it.startsWith("e:") && !it.startsWith("e: [ksp]") && it != KSP_ABORTED }
+            check(others.isEmpty()) { "errors outside the processor's diagnostics:\n" + others.joinToString("\n") }
+            return reported()
+        }
+
+    /** Fails when a file was generated for any of [declarations]: `XRefs`, `XSpec` or `XFlagRecord`. */
+    fun assertNothingGeneratedFor(vararg declarations: String) {
+        val files = generated.keys
+        val unexpected = declarations.flatMap { listOf("${it}Refs.kt", "${it}Spec.kt", "${it}FlagRecord.kt") }
+            .filter { it in files }
+        assertTrue(unexpected.isEmpty(), "generated for a faulty declaration: $unexpected")
+    }
+
+    private fun reported(): List<Reported> = result.messages.lineSequence()
+        .mapNotNull { REPORTED.matchEntire(it.trim()) }
+        .map { Reported(File(it.groupValues[1]).name, it.groupValues[2].toInt(), it.groupValues[3]) }
+        .toList()
 
     /** Generated file name to its text. */
     val generated: Map<String, String>
@@ -44,6 +61,8 @@ internal class Compiled(private val result: JvmCompilationResult) {
     }
 
     private companion object {
+        /** Added by KSP itself after the processor reported any error. */
+        const val KSP_ABORTED = "e: Error occurred in KSP, check log for detail"
         val REPORTED = Regex("""^e: \[ksp] (.+):(\d+): (.*)$""")
     }
 }

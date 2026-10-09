@@ -18,16 +18,32 @@ internal class FeatureFlagProcessor(
         val checks = Checks(resolver, logger)
         val deferred = mutableListOf<KSAnnotated>()
 
-        val records = RecordGenerator(resolver, codeGenerator)
-        for (declaration in symbols(resolver, Names.FLAG_RECORD, deferred)) {
-            if (checks.record(declaration)) records.generate(records.parse(declaration))
+        val recordCandidates = symbols(resolver, Names.FLAG_RECORD, deferred)
+        val containerCandidates = symbols(resolver, Names.FLAG_CONTAINER, deferred)
+        val validRecords = recordCandidates.filter { checks.record(it) }
+        val shapely = containerCandidates.filter { checks.container(it) }
+        val cyclic = checks.cycles(containerCandidates)
+        val validContainers = shapely.filterNot { it in cyclic }
+
+        // A declaration whose generated code names a withheld one would not compile: withhold it too,
+        // without a diagnostic of its own, until nothing changes.
+        val all = recordCandidates + containerCandidates
+        var records = validRecords
+        var containers = validContainers
+        while (true) {
+            val kept = (records + containers).mapNotNull { it.qualifiedName?.asString() }.toSet()
+            val withheld = all.mapNotNull { it.qualifiedName?.asString() }.filter { it !in kept }.toSet()
+            val nextRecords = records.filter { checks.dependencies(it).none(withheld::contains) }
+            val nextContainers = containers.filter { checks.dependencies(it).none(withheld::contains) }
+            if (nextRecords.size == records.size && nextContainers.size == containers.size) break
+            records = nextRecords
+            containers = nextContainers
         }
 
-        val containers = ContainerGenerator(resolver, codeGenerator)
-        val candidates = symbols(resolver, Names.FLAG_CONTAINER, deferred)
-        val valid = candidates.filter { checks.container(it) }
-        val cyclic = checks.cycles(candidates)
-        valid.filterNot { it in cyclic }.forEach { containers.generate(containers.parse(it)) }
+        val recordGenerator = RecordGenerator(resolver, codeGenerator)
+        records.forEach { recordGenerator.generate(recordGenerator.parse(it)) }
+        val containerGenerator = ContainerGenerator(resolver, codeGenerator)
+        containers.forEach { containerGenerator.generate(containerGenerator.parse(it)) }
         return deferred
     }
 

@@ -9,7 +9,12 @@ import kotlin.test.assertTrue
  * Swift's FlagContainerDiagnosticTests; the Kotlin-only cases follow. Body line 1 is file line 10.
  */
 class ContainerDiagnosticTest {
-    private fun errors(body: String): List<Reported> = compile(source("AppFlags.kt", body)).errors
+    /** The reported errors; nothing may be generated for [withheld], the faulty declarations. */
+    private fun errors(body: String, vararg withheld: String = arrayOf("AppFlags")): List<Reported> {
+        val compiled = compile(source("AppFlags.kt", body))
+        compiled.assertNothingGeneratedFor(*withheld)
+        return compiled.errors
+    }
 
     private fun at(line: Int, message: String) = Reported("AppFlags.kt", line, message)
 
@@ -333,6 +338,7 @@ class ContainerDiagnosticTest {
             @FlagContainer
             interface Extends : Base
             """,
+            "Hidden", "Generic", "Extends",
         ),
     )
 
@@ -362,6 +368,7 @@ class ContainerDiagnosticTest {
                 val c: C
             }
             """,
+            "A", "B", "C",
         ),
     )
 
@@ -378,6 +385,20 @@ class ContainerDiagnosticTest {
                 """,
             ),
         )
+        val compiled = compile(
+            source(
+                "AppFlags.kt",
+                """
+                @FlagContainer
+                interface AppFlags {
+                    @FlagGroup(description = "Shared")
+                    val shared: SharedFlags
+                }
+                """,
+            ),
+            classpath = listOf(library),
+        )
+        compiled.assertNothingGeneratedFor("AppFlags")
         assertEquals(
             listOf(
                 at(
@@ -386,19 +407,70 @@ class ContainerDiagnosticTest {
                         "featureflag-ksp processor to the module that declares 'SharedFlags'",
                 ),
             ),
-            compile(
-                source(
-                    "AppFlags.kt",
-                    """
-                    @FlagContainer
-                    interface AppFlags {
-                        @FlagGroup(description = "Shared")
-                        val shared: SharedFlags
-                    }
-                    """,
-                ),
-                classpath = listOf(library),
-            ).errors,
+            compiled.errors,
         )
     }
+
+    @Test fun aContainerWhoseGroupIsInvalidIsWithheldWithoutItsOwnError() = assertEquals(
+        listOf(at(11, "'@FlagContainer' interface 'Hidden' cannot be private: the generated 'HiddenSpec' has to implement it")),
+        errors(
+            """
+            @FlagContainer
+            private interface Hidden
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "Hidden")
+                val hidden: Hidden
+            }
+            """,
+            "Hidden", "AppFlags",
+        ),
+    )
+
+    @Test fun aContainerWhoseGroupIsInACycleIsWithheldWithoutItsOwnError() = assertEquals(
+        listOf(
+            at(13, "'@FlagGroup' 'b' makes 'A' contain itself (A → B → A), so its flags could never finish building"),
+            at(19, "'@FlagGroup' 'a' makes 'B' contain itself (B → A → B), so its flags could never finish building"),
+        ),
+        errors(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "B")
+                val b: B
+            }
+
+            @FlagContainer
+            interface B {
+                @FlagGroup(description = "A")
+                val a: A
+            }
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "A")
+                val a: A
+            }
+            """,
+            "A", "B", "AppFlags",
+        ),
+    )
+
+    @Test fun aContainerWhoseRecordIsInvalidIsWithheldWithoutItsOwnError() = assertEquals(
+        listOf(at(11, "'@FlagRecord' needs at least one field: a record is a shape, and an empty one gives the editor nothing to show")),
+        errors(
+            """
+            @FlagRecord
+            class Empty()
+
+            @FlagContainer
+            interface AppFlags {
+                @Flag(description = "Empties")
+                val empties: FlagRecords<Empty> get() = FlagRecords()
+            }
+            """,
+            "Empty", "AppFlags",
+        ),
+    )
 }

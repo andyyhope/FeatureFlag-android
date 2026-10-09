@@ -263,6 +263,25 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
         return cyclic
     }
 
+    /**
+     * Qualified names of the containers and records [declaration]'s generated code refers to: group
+     * targets and `@FlagRecord` classes in flag types. Used to withhold what depends on a withheld one.
+     */
+    fun dependencies(declaration: KSClassDeclaration): Set<String> {
+        val names = mutableSetOf<String>()
+        declaration.primaryConstructor?.takeIf { declaration.hasAnnotation(Names.FLAG_RECORD) }
+            ?.parameters?.forEach { names += it.type.resolve().recordClasses() }
+        declaration.getDeclaredProperties().forEach {
+            val type = it.type.resolve()
+            if (it.hasAnnotation(Names.FLAG_GROUP)) {
+                type.expanded().declaration.qualifiedName?.asString()?.let(names::add)
+            } else if (it.hasAnnotation(Names.FLAG)) {
+                names += type.recordClasses()
+            }
+        }
+        return names
+    }
+
     private fun pathBack(
         start: KSClassDeclaration,
         next: KSClassDeclaration?,
@@ -310,3 +329,10 @@ internal fun KSType.render(): String {
 /** Whether this is `FlagRecords<…>`, in any spelling. */
 internal fun KSType.isRecordList(): Boolean =
     expanded().declaration.qualifiedName?.asString() == Names.FLAG_RECORDS_NAME
+
+/** Qualified names of every `@FlagRecord` class [this] type mentions, through lists, maps and `FlagRecords`. */
+private fun KSType.recordClasses(): Set<String> {
+    val expanded = expanded()
+    val own = expanded.declaration.takeIf { it.hasAnnotation(Names.FLAG_RECORD) }?.qualifiedName?.asString()
+    return setOfNotNull(own) + expanded.arguments.flatMap { it.type?.resolve()?.recordClasses().orEmpty() }
+}

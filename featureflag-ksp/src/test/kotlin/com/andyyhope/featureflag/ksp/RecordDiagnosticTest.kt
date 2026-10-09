@@ -5,7 +5,12 @@ import kotlin.test.assertEquals
 
 /** Ports Swift's FlagRecordMacroTests diagnostics; the Kotlin-only cases follow. Body line 1 is file line 10. */
 class RecordDiagnosticTest {
-    private fun errors(body: String): List<Reported> = compile(source("Endpoint.kt", body)).errors
+    /** The reported errors; nothing may be generated for [withheld], the faulty declarations. */
+    private fun errors(body: String, vararg withheld: String = arrayOf("Endpoint")): List<Reported> {
+        val compiled = compile(source("Endpoint.kt", body))
+        compiled.assertNothingGeneratedFor(*withheld)
+        return compiled.errors
+    }
 
     private fun at(line: Int, message: String) = Reported("Endpoint.kt", line, message)
 
@@ -180,6 +185,20 @@ class RecordDiagnosticTest {
 
     @Test fun aRecordFromAModuleWithoutTheProcessorIsExplained() {
         val library = compileWithoutProcessor(source("Remote.kt", "@FlagRecord\ndata class Remote(val name: String)"))
+        val compiled = compile(
+            source(
+                "AppFlags.kt",
+                """
+                @FlagContainer
+                interface AppFlags {
+                    @Flag(description = "Remotes")
+                    val remotes: FlagRecords<Remote> get() = FlagRecords()
+                }
+                """,
+            ),
+            classpath = listOf(library),
+        )
+        compiled.assertNothingGeneratedFor("AppFlags")
         assertEquals(
             listOf(
                 Reported(
@@ -189,19 +208,23 @@ class RecordDiagnosticTest {
                         "declares 'Remote'",
                 ),
             ),
-            compile(
-                source(
-                    "AppFlags.kt",
-                    """
-                    @FlagContainer
-                    interface AppFlags {
-                        @Flag(description = "Remotes")
-                        val remotes: FlagRecords<Remote> get() = FlagRecords()
-                    }
-                    """,
-                ),
-                classpath = listOf(library),
-            ).errors,
+            compiled.errors,
         )
     }
+
+    @Test fun aRecordWhoseNestedRecordIsInvalidIsWithheldWithoutItsOwnError() = assertEquals(
+        listOf(at(11, "'@FlagRecord' needs at least one field: a record is a shape, and an empty one gives the editor nothing to show")),
+        errors(
+            """
+            @FlagRecord
+            class Empty()
+
+            @FlagRecord
+            data class Endpoint(
+                val empties: FlagRecords<Empty>,
+            )
+            """,
+            "Empty", "Endpoint",
+        ),
+    )
 }
