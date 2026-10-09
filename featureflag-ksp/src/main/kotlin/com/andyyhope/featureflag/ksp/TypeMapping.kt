@@ -86,6 +86,17 @@ internal fun KSType.expanded(): KSType {
     }
 }
 
+/** The files declaring every typealias [expanded] walks through, nested aliases included. */
+internal fun KSType.aliasFiles(): List<KSFile> {
+    val files = mutableListOf<KSFile>()
+    var type = this
+    while (true) {
+        val alias = type.declaration as? KSTypeAlias ?: return files
+        alias.containingFile?.let(files::add)
+        type = alias.type.resolve()
+    }
+}
+
 /** How one flag or record-field type becomes a `FlagCodecs` expression. */
 internal class TypeMapping(private val resolver: Resolver) {
 
@@ -105,6 +116,12 @@ internal class TypeMapping(private val resolver: Resolver) {
 
     /** Maps a non-null [type]; nullability is the caller's decision. */
     fun map(type: KSType): Result {
+        val result = mapExpanded(type)
+        if (result !is Result.Supported) return result
+        return result.copy(originatingFiles = (result.originatingFiles + type.aliasFiles()).distinct())
+    }
+
+    private fun mapExpanded(type: KSType): Result {
         val expanded = type.expanded()
         if (expanded.isMarkedNullable) return Result.Unsupported(null)
         val declaration = expanded.declaration as? KSClassDeclaration ?: return Result.Unsupported(null)
@@ -152,11 +169,14 @@ internal class TypeMapping(private val resolver: Resolver) {
     }
 
     private fun dictionary(type: KSType): Result {
-        val key = type.arguments[0].type?.resolve()?.expanded()
+        val keyType = type.arguments[0].type?.resolve()
+        val key = keyType?.expanded()
         if (key == null || key.isMarkedNullable || key.declaration.qualifiedName?.asString() != "kotlin.String") {
             return Result.Unsupported(null)
         }
-        return collection(type.arguments[1].type?.resolve(), "map", "emptyMap()")
+        val result = collection(type.arguments[1].type?.resolve(), "map", "emptyMap()")
+        if (result !is Result.Supported) return result
+        return result.copy(originatingFiles = (result.originatingFiles + keyType.aliasFiles()).distinct())
     }
 
     /**
@@ -169,12 +189,13 @@ internal class TypeMapping(private val resolver: Resolver) {
         val codec = Names.generatedName(record, "FlagRecord")
         val annotated = record.hasAnnotation(Names.FLAG_RECORD)
         val generatedHere = annotated && record.origin == Origin.KOTLIN
-        val exists = resolver.getClassDeclarationByName(resolver.getKSNameFromString(codec.canonicalName)) != null
+        val existing = resolver.getClassDeclarationByName(resolver.getKSNameFromString(codec.canonicalName))
+        val exists = existing != null
         return when {
             generatedHere || exists -> Result.Supported(
                 CodeBlock.of("%T.records(%T)", Names.FLAG_CODECS, codec),
                 CodeBlock.of("%T()", Names.FLAG_RECORDS),
-                listOfNotNull(record.containingFile),
+                listOfNotNull(record.containingFile, existing?.containingFile) + element.aliasFiles(),
             )
             annotated -> Result.MissingRecordCodec(record.simpleName.asString(), codec.simpleName)
             else -> Result.Unsupported(null)
