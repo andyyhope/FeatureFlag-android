@@ -1,6 +1,7 @@
 package com.andyyhope.featureflag.errors
 
 import org.junit.Test
+import java.time.Instant
 import kotlin.test.assertEquals
 
 class MessageTextTest {
@@ -24,5 +25,10 @@ class MessageTextTest {
     fun collectionsAreDescribedInWords() {
         assertEquals("an array of 3", MessageText.arrayOf(3))
         assertEquals("an object with 1 field(s)", MessageText.objectWith(1))
+    }
+
+    @Test
+    fun datesAreDescribedAsTheyAreWritten() {
+        assertEquals("2026-01-01T00:00:00Z", MessageText.date(Instant.ofEpochSecond(1_767_225_600)))
     }
 }

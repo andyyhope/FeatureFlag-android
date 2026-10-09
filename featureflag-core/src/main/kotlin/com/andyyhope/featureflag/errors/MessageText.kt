@@ -1,5 +1,8 @@
 package com.andyyhope.featureflag.errors
 
+import com.andyyhope.featureflag.json.IsoDate
+import java.time.Instant
+
 /**
  * The value-rendering helpers behind every error message, ported from `ErrorMessages.swift`.
  *
@@ -30,4 +33,6 @@ internal object MessageText {
     fun arrayOf(count: Int): String = "an array of $count"
 
     fun objectWith(count: Int): String = "an object with $count field(s)"
+
+    fun date(instant: Instant): String = IsoDate.format(instant)
 }
