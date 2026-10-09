@@ -86,3 +86,15 @@ internal fun source(name: String, body: String): SourceFile = SourceFile.kotlin(
     |
     """.trimMargin() + body.trimIndent() + "\n",
 )
+
+/** Compiles [sources] without KSP, as a module that never applied the processor; returns its classes. */
+internal fun compileWithoutProcessor(vararg sources: SourceFile): File {
+    val result = KotlinCompilation().apply {
+        this.sources = sources.toList()
+        inheritClassPath = true
+        jvmTarget = "1.8"
+        messageOutputStream = OutputStream.nullOutputStream()
+    }.compile()
+    check(result.exitCode == KotlinCompilation.ExitCode.OK) { result.messages }
+    return result.outputDirectory
+}
