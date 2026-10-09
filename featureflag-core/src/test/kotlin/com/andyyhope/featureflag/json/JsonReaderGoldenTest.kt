@@ -4,6 +4,7 @@ import com.andyyhope.featureflag.Fixtures
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class JsonReaderGoldenTest {
@@ -26,15 +27,7 @@ class JsonReaderGoldenTest {
     fun classifiesNumbersAsAppleDoes() {
         val mismatches = mutableListOf<String>()
         for ((literal, kind, canonical) in Fixtures.tsv("json/number-parse.tsv")) {
-            val actual = runCatching {
-                (JsonReader.parse("[$literal]".encodeToByteArray()) as JsonValue.Array).items.single()
-            }
-            val description = when (val value = actual.getOrNull()) {
-                null -> "reject\t-"
-                is JsonValue.Integer -> "integer\t${value.value}"
-                is JsonValue.Real -> "real\t%016x".format(value.value.toRawBits())
-                else -> "unexpected $value"
-            }
+            val description = describeNumber(literal)
             if (description != "$kind\t$canonical" && literal !in KNOWN_NUMBER_DEVIATIONS) {
                 mismatches += "${literal.take(40)}: Apple $kind $canonical, Kotlin $description"
             }
@@ -46,8 +39,25 @@ class JsonReaderGoldenTest {
     fun knownNumberDeviationsReallyDeviate() {
         for (literal in KNOWN_NUMBER_DEVIATIONS) {
             val row = Fixtures.tsv("json/number-parse.tsv").single { it[0] == literal }
-            val actual = runCatching { JsonReader.parse("[$literal]".encodeToByteArray()) }.getOrNull()
-            assertTrue(row[1] == "reject" || actual == null, "deviation list is stale for ${literal.take(40)}")
+            val apple = "${row[1]}\t${row[2]}"
+            assertNotEquals(
+                apple,
+                describeNumber(literal),
+                "deviation list is stale: Kotlin now agrees with Apple for ${literal.take(40)}",
+            )
+        }
+    }
+
+    /** `kind\tcanonical` for one literal, in the same shape as `json/number-parse.tsv`. */
+    private fun describeNumber(literal: String): String {
+        val actual = runCatching {
+            (JsonReader.parse("[$literal]".encodeToByteArray()) as JsonValue.Array).items.single()
+        }
+        return when (val value = actual.getOrNull()) {
+            null -> "reject\t-"
+            is JsonValue.Integer -> "integer\t${value.value}"
+            is JsonValue.Real -> "real\t%016x".format(value.value.toRawBits())
+            else -> "unexpected $value"
         }
     }
 

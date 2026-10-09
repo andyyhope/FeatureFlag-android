@@ -75,6 +75,13 @@ class JsonReaderTest {
     }
 
     @Test
+    fun unicodeEscapesAcceptOnlyAsciiHexDigits() {
+        assertFailsWith<JsonSyntaxException> { parse("[\"\\u\u0660\u0660\u0660\u0660\"]") }
+        assertFailsWith<JsonSyntaxException> { parse("[\"\\u\uFF21\u0030\u0030\u0030\"]") }
+        assertFailsWith<JsonSyntaxException> { parse("[\"\\u00G0\"]") }
+    }
+
+    @Test
     fun escapesDecodeToTheirCharacters() {
         val text = (parse("""["\/\b\f\n\r\t\"\\Aé😀"]""") as JsonValue.Array).items.single()
         assertEquals(JsonValue.Text("/\b\u000C\n\r\t\"\\Aé😀"), text)

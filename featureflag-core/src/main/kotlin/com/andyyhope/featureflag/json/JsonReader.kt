@@ -164,8 +164,12 @@ internal object JsonReader {
         private fun hex4(): Char {
             var value = 0
             repeat(4) {
-                val digit = Character.digit(next(), 16)
-                if (digit < 0) fail("Invalid \\u escape")
+                val digit = when (val char = next()) {
+                    in '0'..'9' -> char - '0'
+                    in 'a'..'f' -> char - 'a' + 10
+                    in 'A'..'F' -> char - 'A' + 10
+                    else -> fail("Invalid \\u escape")
+                }
                 value = value * 16 + digit
             }
             return value.toChar()
