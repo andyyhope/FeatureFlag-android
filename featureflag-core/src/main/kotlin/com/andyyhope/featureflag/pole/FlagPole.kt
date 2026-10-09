@@ -49,9 +49,9 @@ public class FlagPole<F : Any>(
     public val schema: FlagSchema = FlagSchema.of(spec, keyEncoding = keyEncoding, applicationName = applicationName)
 
     /**
-     * Every change any source reports: cold, delivered on the thread that made the write.
-     * A collector more than 64 changes behind loses the oldest. Watch one flag with [flow]
-     * instead, which never loses its last change.
+     * Every change any source reports: cold, delivered in the collector's context, with no
+     * hop to the main thread. Nothing is lost: a collector that falls behind receives the
+     * changes it missed combined into one. Watch one flag with [flow] to get its values.
      */
     public val changes: Flow<FlagChange>
         get() = resolver.changes

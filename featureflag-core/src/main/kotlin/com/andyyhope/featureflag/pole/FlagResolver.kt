@@ -36,8 +36,8 @@ internal class FlagResolver(
 
     /**
      * Every change every source reports, merged. Every source is subscribed before
-     * `collect` first suspends. A collector more than 64 changes behind loses the
-     * oldest, as with the sources themselves.
+     * `collect` first suspends. A collector that falls behind receives the changes it
+     * missed combined into one, so no key is lost. Delivery is in the collector's context.
      */
     val changes: Flow<FlagChange> = flow {
         coroutineScope {
@@ -96,9 +96,10 @@ internal class FlagResolver(
 
     /**
      * Subscribes to every source before returning. `UNDISPATCHED` registers each
-     * subscription now, in the caller's frame. `Unconfined` then runs [onChange] on the
-     * writer's thread, so a busy collector never leaves changes queued in a source's
-     * bounded buffer. That makes the dispatcher part of the mechanism, not a choice to inject.
+     * subscription now, in the caller's frame, so a write made after this returns is seen.
+     * Nothing is lost if a subscriber runs late: a source merges the changes a lagging
+     * collector has not yet taken (see `FlagChangeEmitter`). `Unconfined` merely avoids a
+     * thread hop for the cheap filter in [onChange].
      */
     @Suppress("InjectDispatcher")
     private fun CoroutineScope.subscribe(onChange: (FlagChange) -> Unit) {

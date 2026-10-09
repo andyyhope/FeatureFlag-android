@@ -8,6 +8,7 @@ import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.KeyEncoding
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
@@ -203,6 +204,35 @@ class FlagPoleFlowTest {
             }
         } finally {
             writerThread.close()
+        }
+    }
+
+    @Test
+    fun aBurstFromInsideAnUnconfinedEventLoopNeverLeavesAFlowStale() {
+        // A writer inside an active Unconfined loop queues the subscriber's resume instead of
+        // running it, so the source must not drop the flag's own change from a bounded buffer.
+        val executor = Executors.newSingleThreadExecutor()
+        val collectorThread = executor.asCoroutineDispatcher()
+        try {
+            runBlocking<Unit> {
+                val local = SnapshotSource("local")
+                val pole = FlagPole(GoldenFlagsSpec, listOf(local))
+                val seen = Channel<Boolean>(Channel.UNLIMITED)
+                val collector = launch(collectorThread) {
+                    pole.flow(GoldenFlagsSpec.boolFlag).collect { seen.send(it) }
+                }
+                assertEquals(false, withTimeout(5_000) { seen.receive() })
+
+                launch(Dispatchers.Unconfined) {
+                    local.setBox(boolFlag, FlagValueBox.Bool(true))
+                    repeat(200) { local.setBox(intFlag, FlagValueBox.Int(it.toLong())) }
+                }.join()
+
+                assertEquals(true, withTimeout(5_000) { seen.receive() })
+                collector.cancel()
+            }
+        } finally {
+            collectorThread.close()
         }
     }
 

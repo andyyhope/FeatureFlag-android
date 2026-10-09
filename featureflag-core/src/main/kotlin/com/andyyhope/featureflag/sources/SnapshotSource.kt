@@ -3,10 +3,7 @@ package com.andyyhope.featureflag.sources
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * An in-memory set of flag values.
@@ -29,12 +26,9 @@ public class SnapshotSource(
     @Volatile
     private var storage: Map<FlagKey, FlagValueBox> = values.toMap()
 
-    private val changeFlow = MutableSharedFlow<FlagChange>(
-        extraBufferCapacity = CHANGE_BUFFER,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
+    private val emitter = FlagChangeEmitter()
 
-    override val changes: Flow<FlagChange> = changeFlow.asSharedFlow()
+    override val changes: Flow<FlagChange> = emitter.changes
 
     /** Everything this snapshot holds, as of the moment it is read. */
     public val values: Map<FlagKey, FlagValueBox>
@@ -52,17 +46,13 @@ public class SnapshotSource(
                 true
             }
         }
-        if (changed) changeFlow.tryEmit(FlagChange.Keys(setOf(key)))
+        if (changed) emitter.emit(FlagChange.Keys(setOf(key)))
     }
 
     /** Replaces the entire contents in one step, reporting a single change. */
     public fun replaceAll(values: Map<FlagKey, FlagValueBox>) {
         val replacement = values.toMap()
         synchronized(lock) { storage = replacement }
-        changeFlow.tryEmit(FlagChange.All)
-    }
-
-    private companion object {
-        const val CHANGE_BUFFER = 64
+        emitter.emit(FlagChange.All)
     }
 }
