@@ -3,6 +3,19 @@ package com.andyyhope.featureflag.transport
 import com.andyyhope.featureflag.pole.FlagPole
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
+import java.io.File
+
+/**
+ * Writes this pole's schema where a companion app can find it, as `flag-schema.json` in
+ * [directory], creating the directory if needed. The write is atomic, so a reader never
+ * sees half a file.
+ *
+ * Call this on launch: a companion has no other way to learn what flags exist, what they
+ * are called, or what types they hold.
+ *
+ * @return the file written.
+ */
+public fun FlagPole<*>.publishSchema(directory: File): File = schema.write(directory)
 
 /**
  * Every flag some source supplies a value for, ready to serialise.
