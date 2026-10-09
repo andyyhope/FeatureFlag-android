@@ -26,6 +26,11 @@ public annotation class FlagContainer(val description: String = "")
  * Declares one flag. The property's default getter is its compiled default: the value it falls back
  * to when no source supplies one, or what is stored will not decode.
  *
+ * The getter is evaluated once, against the compiled defaults. A getter that reads another flag
+ * sees that flag's compiled default, never a value a source supplies, and a non-constant one
+ * (`Instant.now()`) keeps the value of that first evaluation. Every read path reports that one
+ * value: `pole.flags`, `pole[ref]`, `pole.flow(ref)`, `pole.resolution(ref)` and the schema.
+ *
  * @property description what the flag does, for the companion app.
  * @property remoteKey dot path into a remote payload. Empty means the flag is not remotely overridable.
  */

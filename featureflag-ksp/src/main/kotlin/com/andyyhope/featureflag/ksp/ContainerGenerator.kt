@@ -133,13 +133,17 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
             .build()
     }
 
-    /** `FlagRef(path, name, description, remoteKey, codec) { XSpec.flagDefaults.name }`. */
+    /**
+     * `FlagRef(path, name, description, remoteKey, codec) { … }`. `XSpec`'s own ref evaluates the default
+     * getter once, against `XSpec.flagDefaults`; a ref under a mounted group shares that one value.
+     */
     private fun flagRef(model: ContainerModel, member: ContainerMember.Flag): PropertySpec =
         PropertySpec.builder(member.name, Names.FLAG_REF.parameterizedBy(member.type))
             .initializer(
-                "%T(prefix.appending(%S), %S, %S, %S, %L) { %T.flagDefaults.%N }",
-                Names.FLAG_REF, member.name, member.name, member.description, member.remoteKey,
-                member.codec, model.spec, member.name,
+                "%T(prefix.appending(%S), %S, %S, %S, %L) {\n⇥" +
+                    "if (this === %T) %T.flagDefaults.%N else %T.%N.defaultValue\n⇤}",
+                Names.FLAG_REF, member.name, member.name, member.description, member.remoteKey, member.codec,
+                model.spec, model.spec, member.name, model.spec, member.name,
             )
             .build()
 
@@ -197,7 +201,7 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
         model.members.forEach { member ->
             when (member) {
                 is ContainerMember.Flag -> body.add(
-                    "%T.Flag(%T.of(%S, %S, %S, %N.codec, flagDefaults.%N)),\n",
+                    "%T.Flag(%T.of(%S, %S, %S, %N.codec, %N.defaultValue)),\n",
                     Names.FLAG_SCHEMA_NODE, Names.FLAG_DESCRIPTOR, member.name, member.description,
                     member.remoteKey, member.name, member.name,
                 )
@@ -211,7 +215,10 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
         return body.unindent().add(")\n").endControlFlow().build()
     }
 
-    /** Reads through the lookup, falling back to the interface's own default getter via `super<X>`. */
+    /**
+     * Reads through the lookup, falling back to `XSpec.name.defaultValue`: the default getter, evaluated
+     * once against the compiled defaults, so every read path agrees on it.
+     */
     private fun impl(model: ContainerModel, flags: List<ContainerMember.Flag>): TypeSpec {
         val builder = TypeSpec.classBuilder("Impl")
             .addModifiers(KModifier.PRIVATE)
@@ -240,8 +247,8 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
                     .getter(
                         FunSpec.getterBuilder()
                             .addStatement(
-                                "return flagLookup.%M(flagKeys.%N, %T.%N.codec) { super<%T>.%N }",
-                                Names.READ, member.name, model.spec, member.name, model.name, member.name,
+                                "return flagLookup.%M(flagKeys.%N, %T.%N.codec) { %T.%N.defaultValue }",
+                                Names.READ, member.name, model.spec, member.name, model.spec, member.name,
                             )
                             .build(),
                     )

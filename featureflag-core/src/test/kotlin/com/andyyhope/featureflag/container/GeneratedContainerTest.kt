@@ -1,15 +1,20 @@
 package com.andyyhope.featureflag.container
 
+import com.andyyhope.featureflag.pole.FlagPole
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.schema.flattened
+import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagKeyPath
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import com.andyyhope.featureflag.values.KeyEncoding
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -99,18 +104,43 @@ class GeneratedContainerTest {
         assertTrue(GroupsOnlyFlagsSpec.createFlags(lookup, FlagKeyPath(listOf("mounted"))).express.oneTap)
     }
 
-    @Test fun aDefaultGetterRunsOnEveryReadThatFallsBackToIt() {
-        // Unlike Swift, where `default:` is evaluated once per container, a Kotlin default is a getter:
-        // a non-constant one (Instant.now(), a counter) gives a fresh value on every fallback read.
-        DefaultReads.count = 0
-        val flags = CountingFlagsSpec.createFlags(nothingStored)
-        assertEquals(1, flags.counted)
-        assertEquals(2, flags.counted)
+    @Test fun aDefaultGetterIsEvaluatedOnceAndEveryReadPathAgrees() = runTest {
+        // As Swift evaluates `default:` once, a non-constant default (Instant.now(), a counter) is read
+        // once. Every path then reports that one value, at the root and with the container mounted as a group.
+        val pole = FlagPole(MountedCountingFlagsSpec, sources = emptyList())
+        val mounted = MountedCountingFlagsSpec.counting.counted
+        val default = pole.flags.counting.counted
+        val reads = DefaultReads.count
+
+        assertEquals(default, pole.flags.counting.counted)
+        assertEquals(default, pole[mounted])
+        assertEquals(default, pole.flow(mounted).first())
+        assertEquals(FlagValueBox.Int(default.toLong()), pole.resolution(mounted).box)
+        assertEquals(FlagValueBox.Int(default.toLong()), pole.schema.flags.single().defaultValue)
+        assertEquals(default, CountingFlagsSpec.createFlags(nothingStored).counted)
+        assertEquals(default, CountingFlagsSpec.counted.defaultValue)
+        assertEquals(FlagValueBox.Int(default.toLong()), CountingFlagsSpec.flagDescriptors.flattened().single().defaultValue)
+        assertEquals(reads, DefaultReads.count, "no read ran the default getter again")
+
         val stored = object : FlagLookup {
             override val keyEncoding: KeyEncoding = KeyEncoding.Kebabcase
             override fun box(key: FlagKey, type: FlagValueType): FlagValueBox? = FlagValueBox.Int(7)
         }
         assertEquals(7, CountingFlagsSpec.createFlags(stored).counted)
-        assertEquals(2, DefaultReads.count)
+    }
+
+    @Test fun aDefaultThatReadsAnotherFlagSeesThatFlagsCompiledDefaultOnEveryPath() = runTest {
+        // `b`'s default getter reads `a`. It is evaluated against the compiled defaults, so a source that
+        // sets `a` does not move `b`'s default, whichever way `b` is read.
+        val source = SnapshotSource(values = mapOf(FlagKey("a") to FlagValueBox.Bool(true)))
+        val pole = FlagPole(DerivedDefaultFlagsSpec, listOf(source))
+        val b = DerivedDefaultFlagsSpec.b
+
+        assertTrue(pole.flags.a)
+        assertFalse(pole.flags.b, "pole.flags")
+        assertFalse(pole[b], "pole[ref]")
+        assertFalse(pole.flow(b).first(), "flow(ref)")
+        assertEquals(FlagValueBox.Bool(false), pole.resolution(b).box, "resolution(ref)")
+        assertEquals(FlagValueBox.Bool(false), pole.schema.flags.single { it.key == FlagKey("b") }.defaultValue, "schema")
     }
 }

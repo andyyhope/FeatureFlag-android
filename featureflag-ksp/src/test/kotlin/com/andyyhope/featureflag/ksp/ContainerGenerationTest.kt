@@ -44,7 +44,7 @@ class ContainerGenerationTest {
 
     @Test fun aConsumerOnJvmTarget18RunsTheGeneratedCode() {
         // Android modules often still target 1.8 or 11. Generated code must not inline anything from
-        // core, whose bytecode is 17, and the super<X> fallback must work from a non-inline lambda.
+        // core, whose bytecode is 17, and the default fallback must work from a non-inline lambda.
         val compiled = compile(
             source(
                 "Probe.kt",

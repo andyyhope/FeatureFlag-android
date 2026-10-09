@@ -115,3 +115,18 @@ interface CountingFlags {
     @Flag(description = "Counted")
     val counted: Int get() = ++DefaultReads.count
 }
+
+@FlagContainer
+interface MountedCountingFlags {
+    @FlagGroup(description = "Counting")
+    val counting: CountingFlags
+}
+
+@FlagContainer
+interface DerivedDefaultFlags {
+    @Flag(description = "A")
+    val a: Boolean get() = false
+
+    @Flag(description = "B, whose default is A's")
+    val b: Boolean get() = a
+}

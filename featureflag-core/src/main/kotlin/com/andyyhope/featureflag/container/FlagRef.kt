@@ -18,8 +18,10 @@ public class FlagRef<T>(
     defaultProvider: () -> T,
 ) {
     /**
-     * The compiled default. Read on first use, because generated refs are built while the spec
-     * object that owns the defaults is still initialising.
+     * The compiled default: the flag's default getter, evaluated once, against the compiled
+     * defaults. Every read path falls back to this one value, the generated container included.
+     * Read on first use, because generated refs are built while the spec object that owns the
+     * defaults is still initialising.
      */
     public val defaultValue: T by lazy(defaultProvider)
 

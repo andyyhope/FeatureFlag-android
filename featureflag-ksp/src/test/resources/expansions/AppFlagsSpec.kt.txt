@@ -22,10 +22,14 @@ public open class AppFlagsRefs(
   prefix: FlagKeyPath,
 ) {
   public val newOnboarding: FlagRef<Boolean> =
-      FlagRef(prefix.appending("newOnboarding"), "newOnboarding", "New onboarding", "featureToggles.onboarding.v2", FlagCodecs.boolean) { AppFlagsSpec.flagDefaults.newOnboarding }
+      FlagRef(prefix.appending("newOnboarding"), "newOnboarding", "New onboarding", "featureToggles.onboarding.v2", FlagCodecs.boolean) {
+        if (this === AppFlagsSpec) AppFlagsSpec.flagDefaults.newOnboarding else AppFlagsSpec.newOnboarding.defaultValue
+      }
 
   public val maxItems: FlagRef<Int> =
-      FlagRef(prefix.appending("maxItems"), "maxItems", "Maximum items", null, FlagCodecs.int) { AppFlagsSpec.flagDefaults.maxItems }
+      FlagRef(prefix.appending("maxItems"), "maxItems", "Maximum items", null, FlagCodecs.int) {
+        if (this === AppFlagsSpec) AppFlagsSpec.flagDefaults.maxItems else AppFlagsSpec.maxItems.defaultValue
+      }
 
   public val checkout: CheckoutFlagsRefs = CheckoutFlagsRefs(prefix.appending("checkout"))
 }
@@ -40,8 +44,8 @@ public object AppFlagsSpec : AppFlagsRefs(FlagKeyPath.ROOT), FlagContainerSpec<A
 
   override val flagDescriptors: List<FlagSchemaNode> by lazy {
         listOf(
-          FlagSchemaNode.Flag(FlagDescriptor.of("newOnboarding", "New onboarding", "featureToggles.onboarding.v2", newOnboarding.codec, flagDefaults.newOnboarding)),
-          FlagSchemaNode.Flag(FlagDescriptor.of("maxItems", "Maximum items", null, maxItems.codec, flagDefaults.maxItems)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("newOnboarding", "New onboarding", "featureToggles.onboarding.v2", newOnboarding.codec, newOnboarding.defaultValue)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("maxItems", "Maximum items", null, maxItems.codec, maxItems.defaultValue)),
           FlagSchemaNode.Group(FlagGroupDescriptor("checkout", FlagKeyPath(listOf("checkout")), "Checkout", CheckoutFlagsSpec.flagDescriptors.map { it.prefixed("checkout") })),
         )
       }
@@ -55,10 +59,10 @@ public object AppFlagsSpec : AppFlagsRefs(FlagKeyPath.ROOT), FlagContainerSpec<A
     private val flagKeys: Keys = Keys(flagLookup.keyEncoding, flagPrefix)
 
     override val newOnboarding: Boolean
-      get() = flagLookup.read(flagKeys.newOnboarding, AppFlagsSpec.newOnboarding.codec) { super<AppFlags>.newOnboarding }
+      get() = flagLookup.read(flagKeys.newOnboarding, AppFlagsSpec.newOnboarding.codec) { AppFlagsSpec.newOnboarding.defaultValue }
 
     override val maxItems: Int
-      get() = flagLookup.read(flagKeys.maxItems, AppFlagsSpec.maxItems.codec) { super<AppFlags>.maxItems }
+      get() = flagLookup.read(flagKeys.maxItems, AppFlagsSpec.maxItems.codec) { AppFlagsSpec.maxItems.defaultValue }
 
     override val checkout: CheckoutFlags =
         CheckoutFlagsSpec.createFlags(flagLookup, flagPrefix.appending("checkout"))

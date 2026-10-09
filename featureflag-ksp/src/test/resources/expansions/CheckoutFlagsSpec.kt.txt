@@ -20,10 +20,14 @@ public open class CheckoutFlagsRefs(
   prefix: FlagKeyPath,
 ) {
   public val applePay: FlagRef<Boolean> =
-      FlagRef(prefix.appending("applePay"), "applePay", "Apple Pay", null, FlagCodecs.boolean) { CheckoutFlagsSpec.flagDefaults.applePay }
+      FlagRef(prefix.appending("applePay"), "applePay", "Apple Pay", null, FlagCodecs.boolean) {
+        if (this === CheckoutFlagsSpec) CheckoutFlagsSpec.flagDefaults.applePay else CheckoutFlagsSpec.applePay.defaultValue
+      }
 
   public val tier: FlagRef<Tier> =
-      FlagRef(prefix.appending("tier"), "tier", "Tier", null, FlagCodecs.enumByName(Tier.entries)) { CheckoutFlagsSpec.flagDefaults.tier }
+      FlagRef(prefix.appending("tier"), "tier", "Tier", null, FlagCodecs.enumByName(Tier.entries)) {
+        if (this === CheckoutFlagsSpec) CheckoutFlagsSpec.flagDefaults.tier else CheckoutFlagsSpec.tier.defaultValue
+      }
 }
 
 public object CheckoutFlagsSpec : CheckoutFlagsRefs(FlagKeyPath.ROOT),
@@ -35,8 +39,8 @@ public object CheckoutFlagsSpec : CheckoutFlagsRefs(FlagKeyPath.ROOT),
 
   override val flagDescriptors: List<FlagSchemaNode> by lazy {
         listOf(
-          FlagSchemaNode.Flag(FlagDescriptor.of("applePay", "Apple Pay", null, applePay.codec, flagDefaults.applePay)),
-          FlagSchemaNode.Flag(FlagDescriptor.of("tier", "Tier", null, tier.codec, flagDefaults.tier)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("applePay", "Apple Pay", null, applePay.codec, applePay.defaultValue)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("tier", "Tier", null, tier.codec, tier.defaultValue)),
         )
       }
 
@@ -49,10 +53,10 @@ public object CheckoutFlagsSpec : CheckoutFlagsRefs(FlagKeyPath.ROOT),
     private val flagKeys: Keys = Keys(flagLookup.keyEncoding, flagPrefix)
 
     override val applePay: Boolean
-      get() = flagLookup.read(flagKeys.applePay, CheckoutFlagsSpec.applePay.codec) { super<CheckoutFlags>.applePay }
+      get() = flagLookup.read(flagKeys.applePay, CheckoutFlagsSpec.applePay.codec) { CheckoutFlagsSpec.applePay.defaultValue }
 
     override val tier: Tier
-      get() = flagLookup.read(flagKeys.tier, CheckoutFlagsSpec.tier.codec) { super<CheckoutFlags>.tier }
+      get() = flagLookup.read(flagKeys.tier, CheckoutFlagsSpec.tier.codec) { CheckoutFlagsSpec.tier.defaultValue }
   }
 
   private class Keys(
