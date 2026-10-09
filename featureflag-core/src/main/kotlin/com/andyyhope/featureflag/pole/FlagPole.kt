@@ -6,18 +6,24 @@ import com.andyyhope.featureflag.container.read
 import com.andyyhope.featureflag.schema.FlagDescriptor
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.schema.flattened
+import com.andyyhope.featureflag.sources.FlagChange
 import com.andyyhope.featureflag.sources.FlagValueSource
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import com.andyyhope.featureflag.values.KeyEncoding
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /**
  * Reads feature flags, resolving each one through an ordered stack of sources, as in
- * `FlagPole(AppFlagsSpec, sources = listOf(local, remote)).flags.checkout.googlePay`.
+ * `FlagPole(AppFlagsSpec, sources = listOf(local, remote)).flags.checkout.googlePay`, and
+ * watches one with `pole.flow(AppFlagsSpec.checkout.googlePay)`.
  *
  * The order of [sources] is the precedence. Anything no source supplies falls back to
- * the flag's compiled default. Reads are lock-free and safe from any thread.
+ * the flag's compiled default. Reads are lock-free and safe from any thread, and no flow
+ * here hops to the main thread.
  *
  * @param keyEncoding how property-name paths become storage keys. Changing it renames
  *   every key, so choose it once.
@@ -41,6 +47,14 @@ public class FlagPole<F : Any>(
 
     /** This pole's flags, described so a companion app can render them without the host's types. Built once. */
     public val schema: FlagSchema = FlagSchema.of(spec, keyEncoding = keyEncoding, applicationName = applicationName)
+
+    /**
+     * Every change any source reports: cold, delivered on the thread that made the write.
+     * A collector more than 64 changes behind loses the oldest. Watch one flag with [flow]
+     * instead, which never loses its last change.
+     */
+    public val changes: Flow<FlagChange>
+        get() = resolver.changes
 
     /** Every flag this pole knows about, flattened out of the container tree, depth first. */
     public val descriptors: List<FlagDescriptor>
@@ -66,6 +80,23 @@ public class FlagPole<F : Any>(
 
     /** A flag's current value, read without going through [flags]. */
     public operator fun <T> get(ref: FlagRef<T>): T = resolver.read(key(ref), ref.codec) { ref.defaultValue }
+
+    /**
+     * A flag's value now, then each time it changes to something different.
+     *
+     * Every source is subscribed before the first value is read, so a write made while
+     * collection starts is never lost. Values arrive on the collector's context, and the
+     * flow never completes.
+     */
+    public fun <T> flow(ref: FlagRef<T>): Flow<T> {
+        val flagKey = key(ref)
+        val type = ref.codec.type
+        return resolver.ticks(flagKey)
+            .map { resolver.box(flagKey, type) }
+            .distinctUntilChanged()
+            .map { box -> box?.let { ref.codec.decode(it) } ?: ref.defaultValue }
+            .distinctUntilChanged()
+    }
 
     /** The storage key [ref] resolves against under this pole's [keyEncoding]. */
     public fun key(ref: FlagRef<*>): FlagKey = ref.key(keyEncoding)
