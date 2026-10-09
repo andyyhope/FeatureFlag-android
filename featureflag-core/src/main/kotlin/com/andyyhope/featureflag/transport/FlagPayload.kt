@@ -151,7 +151,7 @@ internal class ImportRules(schema: FlagSchema) {
         }
         val permitted = cases[key]
         if (permitted != null && box !in permitted) {
-            return FlagImportProblem(key, FlagImportProblem.Kind.UnknownCase, permitted.caseListDescription(), raw.importDescription())
+            return FlagImportProblem(key, FlagImportProblem.Kind.UnknownCase, MessageText.caseList(permitted), raw.importDescription())
         }
         val shape = shapes[key] ?: return null
         return recordProblem(key, raw, box, shape)
@@ -178,7 +178,7 @@ private fun recordProblem(
     } else {
         "every record to have its own ${shape.firstOrNull { it.isKey }?.name ?: "key"}"
     }
-    val found = if (duplicate == null) raw.importDescription() else "two with ${duplicate.shortDescription()}"
+    val found = if (duplicate == null) raw.importDescription() else "two with ${MessageText.short(duplicate)}"
     return FlagImportProblem(key, FlagImportProblem.Kind.TypeMismatch, expected, found)
 }
 
@@ -191,33 +191,6 @@ private fun JsonValue.importDescription(): String = when (this) {
     is JsonValue.Array -> MessageText.arrayOf(items.size)
     is JsonValue.Object -> MessageText.objectWith(fields.size)
     JsonValue.Null -> "<null>"
-}
-
-/**
- * Swift's `FlagValueBox.shortMessageDescription`. Doubles and floats use Kotlin's
- * `toString()`, which matches Swift's `String(_:)` for ordinary values. M1d Task D1
- * replaces this with `MessageText.short`, the exact port.
- */
-private fun FlagValueBox.shortDescription(): String = when (this) {
-    is FlagValueBox.String -> MessageText.quoted(value)
-    is FlagValueBox.Bool -> value.toString()
-    is FlagValueBox.Int -> value.toString()
-    is FlagValueBox.Double -> value.toString()
-    is FlagValueBox.Float -> value.toString()
-    is FlagValueBox.Url -> MessageText.quoted(value.toString())
-    is FlagValueBox.Date -> MessageText.date(value)
-    is FlagValueBox.Data -> "${value.size} bytes"
-    is FlagValueBox.Array -> MessageText.arrayOf(value.size)
-    is FlagValueBox.Dictionary -> MessageText.objectWith(value.size)
-}
-
-/** Swift's `caseListDescription`: a string case bare, and an int case as `String(describing:)` writes it. */
-private fun List<FlagValueBox>.caseListDescription(): String = joinToString(", ") { box ->
-    when (box) {
-        is FlagValueBox.String -> box.value
-        is FlagValueBox.Int -> "int(${box.value})"
-        else -> box.shortDescription()
-    }
 }
 
 /**
