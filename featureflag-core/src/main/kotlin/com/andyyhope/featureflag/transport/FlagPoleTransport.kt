@@ -54,3 +54,21 @@ public fun FlagPole<*>.apply(payload: FlagPayload) {
         }
     }
 }
+
+/**
+ * The current overrides, encoded for a QR code.
+ *
+ * @throws com.andyyhope.featureflag.errors.FlagQRCodeException.PayloadTooLarge when they will not fit.
+ */
+public fun FlagPole<*>.qrCodeString(): String = FlagQRCode.encode(exportPayload())
+
+/**
+ * Applies a scanned flag code, all or nothing, exactly as [importJson] applies a document.
+ *
+ * @return the payload that was applied.
+ */
+public fun FlagPole<*>.importQRCode(text: String): FlagPayload {
+    val payload = FlagQRCode.decode(text, schema)
+    apply(payload)
+    return payload
+}

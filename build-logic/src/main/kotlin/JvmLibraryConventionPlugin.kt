@@ -39,10 +39,18 @@ class JvmLibraryConventionPlugin : Plugin<Project> {
         // registered as a task input so editing a fixture re-runs the tests instead of leaving them
         // UP-TO-DATE. A file tree, not `inputs.dir(...)`: it is simply empty when the dir is absent.
         val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures")
+        // The Kotlin-written files Swift decodes. Tests compare against them, and rewrite them only
+        // when run with -Pfeatureflag.writeAndroidFixtures=true.
+        val androidFixturesDir = rootProject.layout.projectDirectory.dir("fixtures-android")
+        val writeAndroidFixtures = providers.gradleProperty("featureflag.writeAndroidFixtures").orElse("false").get()
         tasks.withType<Test>().configureEach {
             systemProperty("featureflag.fixtures", fixturesDir.asFile.absolutePath)
+            systemProperty("featureflag.writeAndroidFixtures", writeAndroidFixtures)
             inputs.files(fixturesDir.asFileTree)
                 .withPropertyName("featureflagFixtures")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
+            inputs.files(androidFixturesDir.asFileTree)
+                .withPropertyName("featureflagAndroidFixtures")
                 .withPathSensitivity(PathSensitivity.RELATIVE)
         }
     }
