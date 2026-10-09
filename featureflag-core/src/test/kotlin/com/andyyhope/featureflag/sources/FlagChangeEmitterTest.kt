@@ -17,12 +17,17 @@ class FlagChangeEmitterTest {
     private fun keys(first: FlagKey, vararg rest: String) = FlagChange.Keys(setOf(first) + rest.map { FlagKey(it) })
 
     @Test
-    fun mergeFollowsTheRules() {
-        assertEquals(keys(a), merge(null, keys(a)))
-        assertEquals(FlagChange.All, merge(null, FlagChange.All))
-        assertEquals(FlagChange.All, merge(FlagChange.All, keys(a)))
-        assertEquals(FlagChange.All, merge(keys(a), FlagChange.All))
-        assertEquals(keys(a, "b"), merge(keys(a), keys(b)))
+    fun anInboxMergesByTheRules() = runBlocking<Unit> {
+        suspend fun merged(vararg changes: FlagChange): FlagChange {
+            val inbox = ChangeInbox()
+            changes.forEach { inbox.offer(it) }
+            return inbox.next()
+        }
+        assertEquals(keys(a), merged(keys(a)))
+        assertEquals(FlagChange.All, merged(FlagChange.All))
+        assertEquals(FlagChange.All, merged(FlagChange.All, keys(a)))
+        assertEquals(FlagChange.All, merged(keys(a), FlagChange.All))
+        assertEquals(keys(a, "b"), merged(keys(a), keys(b)))
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.andyyhope.featureflag.sources
 
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.util.concurrent.CopyOnWriteArraySet
@@ -16,58 +15,32 @@ import java.util.concurrent.CopyOnWriteArraySet
  * bounded and nothing is lost. A collector that falls behind receives one change covering
  * everything it missed.
  *
- * [emit] never suspends and never blocks on a collector, so it is safe from any thread and
- * delivery does not depend on a dispatcher. Changes reach each collector in its own
- * context. A collector sees only the changes emitted after its collection starts, and it
- * is registered before `collect` first suspends.
+ * [emit] never suspends and never waits for a slow collector, so it is safe from any
+ * thread and delivery does not depend on a dispatcher. It may run an `Unconfined`
+ * collector's code inline, on the writer's thread. A collector sees only the changes
+ * emitted after its collection starts, and it is registered before `collect` first suspends.
  */
 public class FlagChangeEmitter {
 
-    private val subscribers = CopyOnWriteArraySet<Subscriber>()
+    private val inboxes = CopyOnWriteArraySet<ChangeInbox>()
 
     /** How many collections are active. Exposed for tests. */
     internal val subscriberCount: Int
-        get() = subscribers.size
+        get() = inboxes.size
 
     /** Cold: each collection registers itself when it starts and unregisters when it ends. */
     public val changes: Flow<FlagChange> = flow {
-        val subscriber = Subscriber()
-        subscribers.add(subscriber)
+        val inbox = ChangeInbox()
+        inboxes.add(inbox)
         try {
-            while (true) {
-                subscriber.signal.receive()
-                subscriber.take()?.let { emit(it) }
-            }
+            while (true) emit(inbox.next())
         } finally {
-            subscribers.remove(subscriber)
+            inboxes.remove(inbox)
         }
     }
 
-    /** Hands [change] to every active collector. Never suspends, never blocks, never loses information. */
+    /** Hands [change] to every active collector. Never suspends, never waits, never loses information. */
     public fun emit(change: FlagChange) {
-        for (subscriber in subscribers) subscriber.offer(change)
+        for (inbox in inboxes) inbox.offer(change)
     }
-
-    private class Subscriber {
-        val signal = Channel<Unit>(Channel.CONFLATED)
-        private val lock = Any()
-        private var pending: FlagChange? = null
-
-        fun offer(change: FlagChange) {
-            synchronized(lock) { pending = merge(pending, change) }
-            signal.trySend(Unit)
-        }
-
-        fun take(): FlagChange? = synchronized(lock) {
-            val taken = pending
-            pending = null
-            taken
-        }
-    }
-}
-
-internal fun merge(pending: FlagChange?, change: FlagChange): FlagChange = when {
-    pending == null -> change
-    pending is FlagChange.All || change is FlagChange.All -> FlagChange.All
-    else -> FlagChange.Keys((pending as FlagChange.Keys).keys + (change as FlagChange.Keys).keys)
 }

@@ -8,6 +8,7 @@ import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.KeyEncoding
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
@@ -233,6 +234,41 @@ class FlagPoleFlowTest {
             }
         } finally {
             collectorThread.close()
+        }
+    }
+
+    @Test
+    fun aBusyChangesCollectorStillLearnsOfEveryKeyAfterABurst() {
+        val executor = Executors.newSingleThreadExecutor()
+        val busyThread = executor.asCoroutineDispatcher()
+        try {
+            runBlocking<Unit> {
+                val local = SnapshotSource("local")
+                val pole = FlagPole(GoldenFlagsSpec, listOf(local))
+                val seen = Channel<FlagChange>(Channel.UNLIMITED)
+                val collector = launch(busyThread, start = CoroutineStart.UNDISPATCHED) {
+                    pole.changes.collect { seen.send(it) }
+                }
+                val blocked = CountDownLatch(1)
+                val release = CountDownLatch(1)
+                executor.execute {
+                    blocked.countDown()
+                    release.await()
+                }
+                blocked.await()
+                local.setBox(intFlag, FlagValueBox.Int(0))
+                local.setBox(boolFlag, FlagValueBox.Bool(true))
+                repeat(200) { local.setBox(FlagKey("other-$it"), FlagValueBox.Int(it.toLong())) }
+                release.countDown()
+
+                val keys = mutableSetOf<FlagKey>()
+                withTimeout(5_000) {
+                    while (boolFlag !in keys) keys += (seen.receive() as FlagChange.Keys).keys
+                }
+                collector.cancel()
+            }
+        } finally {
+            busyThread.close()
         }
     }
 

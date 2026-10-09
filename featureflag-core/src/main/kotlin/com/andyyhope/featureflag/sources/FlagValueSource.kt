@@ -50,9 +50,12 @@ public interface FlagValueSource {
     /**
      * Emits whenever stored values change.
      *
-     * A collector must be subscribed by the time `collect` first suspends, as it is for a
-     * `SharedFlow`. A pole's flows rely on that so that they never miss a write made while
-     * they subscribe.
+     * Delivery must be lossless: no change may be dropped, though changes a slow collector
+     * has not yet seen may be merged into one. A bounded, dropping buffer such as a
+     * `MutableSharedFlow` with `DROP_OLDEST` breaks this. Use `FlagChangeEmitter`.
+     *
+     * A collector must be subscribed by the time `collect` first suspends. A pole's flows
+     * rely on that so that they never miss a write made while they subscribe.
      */
     public val changes: Flow<FlagChange>
 }

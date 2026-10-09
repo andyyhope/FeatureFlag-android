@@ -2,6 +2,7 @@ package com.andyyhope.featureflag.pole
 
 import com.andyyhope.featureflag.container.FlagLookup
 import com.andyyhope.featureflag.errors.FlagException
+import com.andyyhope.featureflag.sources.ChangeInbox
 import com.andyyhope.featureflag.sources.FlagChange
 import com.andyyhope.featureflag.sources.FlagValueSource
 import com.andyyhope.featureflag.sources.MutableFlagValueSource
@@ -12,7 +13,6 @@ import com.andyyhope.featureflag.values.KeyEncoding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -41,9 +41,9 @@ internal class FlagResolver(
      */
     val changes: Flow<FlagChange> = flow {
         coroutineScope {
-            val pending = Channel<FlagChange>(CHANGE_BUFFER, BufferOverflow.DROP_OLDEST)
-            subscribe { change -> pending.trySend(change) }
-            while (true) emit(pending.receive())
+            val inbox = ChangeInbox()
+            subscribe { change -> inbox.offer(change) }
+            while (true) emit(inbox.next())
         }
     }
 
@@ -108,9 +108,5 @@ internal class FlagResolver(
                 source.changes.collect { change -> onChange(change) }
             }
         }
-    }
-
-    private companion object {
-        const val CHANGE_BUFFER = 64
     }
 }
