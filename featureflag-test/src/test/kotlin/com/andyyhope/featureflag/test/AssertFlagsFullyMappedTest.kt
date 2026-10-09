@@ -3,11 +3,14 @@ package com.andyyhope.featureflag.test
 import com.andyyhope.featureflag.audit.FlagMappingAudit
 import com.andyyhope.featureflag.container.FlagContainerSpec
 import com.andyyhope.featureflag.container.FlagLookup
+import com.andyyhope.featureflag.records.FlagRecordField
 import com.andyyhope.featureflag.schema.FlagDescriptor
 import com.andyyhope.featureflag.schema.FlagSchemaNode
 import com.andyyhope.featureflag.values.FlagCodecs
 import com.andyyhope.featureflag.values.FlagKeyPath
 import com.andyyhope.featureflag.values.FlagStringEnum
+import com.andyyhope.featureflag.values.FlagValueBox
+import com.andyyhope.featureflag.values.FlagValueType
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -42,6 +45,31 @@ internal object HelperFlagsSpec : FlagContainerSpec<HelperFlags> {
     }
 
     override fun createFlags(lookup: FlagLookup, prefix: FlagKeyPath): HelperFlags = flagDefaults
+}
+
+internal interface RatioHelperFlags
+
+/** One record flag, written by hand like [HelperFlagsSpec]. An audit reads only its shape. */
+internal object RatioHelperFlagsSpec : FlagContainerSpec<RatioHelperFlags> {
+    override val flagContainerDescription: String? = null
+
+    override val flagDescriptors: List<FlagSchemaNode> = listOf(
+        FlagSchemaNode.Flag(
+            FlagDescriptor(
+                propertyName = "ratios",
+                keyPath = FlagKeyPath(listOf("ratios")),
+                description = "Ratios",
+                valueType = FlagValueType.String,
+                defaultValue = FlagValueBox.String("[]"),
+                remoteKey = "config.ratios",
+                recordShape = listOf(FlagRecordField.of("name", FlagCodecs.string), FlagRecordField.of("ratio", FlagCodecs.float)),
+            ),
+        ),
+    )
+
+    override val flagDefaults: RatioHelperFlags = object : RatioHelperFlags {}
+
+    override fun createFlags(lookup: FlagLookup, prefix: FlagKeyPath): RatioHelperFlags = flagDefaults
 }
 
 class AssertFlagsFullyMappedTest {
@@ -88,6 +116,19 @@ class AssertFlagsFullyMappedTest {
                 "  unconsumed (1) — usually fine, often backend metadata — no flag reads these:\n" +
                 "    • config.page_size\n" +
                 "  2 of 3 remotely-overridable flags applied.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun aRecordFieldThatOverflowsToInfinityFailsAsAMismatch() {
+        val payload = """{ "config": { "ratios": [ { "name": "x", "ratio": 1e300 } ] } }""".toByteArray()
+        val error = assertFailsWith<AssertionError> { assertFlagsFullyMapped(RatioHelperFlagsSpec, payload) }
+        assertEquals(
+            "\nFlag mapping audit — incomplete.\n" +
+                "  mismatched (1):\n" +
+                "    • 'config.ratios' → ratios: expected a list of records (name, ratio), got an array of 1\n" +
+                "  0 of 1 remotely-overridable flags applied.",
             error.message,
         )
     }

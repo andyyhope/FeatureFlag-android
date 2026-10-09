@@ -42,6 +42,15 @@ internal interface RecordAuditFlags {
     val endpoints: FlagRecords<AuditEndpoint> get() = FlagRecords()
 }
 
+@FlagRecord
+internal data class AuditRatio(val name: String, val ratio: Float)
+
+@FlagContainer
+internal interface RatioAuditFlags {
+    @Flag(description = "Ratios", remoteKey = "config.ratios")
+    val ratios: FlagRecords<AuditRatio> get() = FlagRecords()
+}
+
 class FlagMappingAuditTest {
 
     private val complete = """{ "featureToggles": { "onboarding": true }, "config": { "pageSize": 25, "tier": "pro" } }"""
@@ -137,6 +146,16 @@ class FlagMappingAuditTest {
             audit("""{ "featureToggles": { "onboarding": true }, "config": { "pageSize": 25, "tier": "gold" } }""")
         assertEquals(keys("checkout-tier"), audit.mismatched.map { it.key })
         assertEquals(Kind.UnknownCase, audit.mismatched.first().kind)
+    }
+
+    @Test
+    fun aRecordFieldThatOverflowsToInfinityIsAMismatch() {
+        val payload = """{ "config": { "ratios": [ { "name": "x", "ratio": 1e300 } ] } }"""
+        val audit = FlagMappingAudit(RatioAuditFlagsSpec, payload.toByteArray())
+        assertEquals(keys("ratios"), audit.mismatched.map { it.key })
+        assertEquals(Kind.TypeMismatch, audit.mismatched.single().kind)
+        assertEquals(emptyList(), audit.applied)
+        assertFalse(audit.isComplete)
     }
 
     // Flags with no remoteKey

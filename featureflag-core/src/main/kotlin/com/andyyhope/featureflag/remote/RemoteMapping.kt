@@ -100,9 +100,13 @@ private fun RemoteValue.Object.recordFields(shape: List<FlagRecordField>): Map<S
             if (!field.isOptional) boxes[field.name] = field.defaultValue ?: return null
         } else {
             // A nested list recurses rather than being read as one string. Again there is
-            // no fallback to `box`, so it is not stored as text.
+            // no fallback to `box`, so it is not stored as text. A number that boxes to an
+            // infinity (1e300 in a float field, -1e400 anywhere) cannot be stored as JSON
+            // text, so it makes the field unreadable, like a value of the wrong type.
             val nested = field.fields
-            val box = (if (nested != null) raw.recordBox(nested) else raw.box(field.type)) ?: return null
+            val box = (if (nested != null) raw.recordBox(nested) else raw.box(field.type))
+                ?.takeUnless { it.containsNonFiniteNumber }
+                ?: return null
             val cases = field.cases
             if (cases != null && box !in cases) return null
             boxes[field.name] = box

@@ -79,6 +79,21 @@ internal interface PayFlags {
 }
 
 @FlagRecord
+internal data class FloatRatio(val name: String, val ratio: Float)
+
+@FlagRecord
+internal data class DoubleRatio(val name: String, val ratio: Double)
+
+@FlagContainer
+internal interface RatioFlags {
+    @Flag(description = "Float ratios", remoteKey = "recs")
+    val recs: FlagRecords<FloatRatio> get() = FlagRecords()
+
+    @Flag(description = "Double ratios", remoteKey = "doubles")
+    val doubles: FlagRecords<DoubleRatio> get() = FlagRecords()
+}
+
+@FlagRecord
 internal data class KeyedEndpoint(@FlagRecordKey val name: String, val url: URI)
 
 @FlagContainer
@@ -170,6 +185,37 @@ class FlagRecordRemoteTest {
                 json("""{ "config": { "endpoints": [ { "name": "x", "url": "https://x.example", "weight": 1, "tier": "experimental" } ] } }"""),
             )
         }
+    }
+
+    @Test
+    fun aFloatFieldThatOverflowsToInfinityRejectsThePayloadLikeAWrongType() {
+        // 1e300 is a valid double, but narrows to Float.POSITIVE_INFINITY, which stored JSON cannot hold.
+        val source = RemoteOverrideSource(RatioFlagsSpec)
+        val error = assertFailsWith<RemoteOverrideException.Rejected> {
+            source.apply(json("""{"recs":[{"name":"x","ratio":1e300}], "doubles":[{"name":"y","ratio":0.5}]}"""))
+        }
+        val wrongType = assertFailsWith<RemoteOverrideException.Rejected> {
+            source.apply(json("""{"recs":[{"name":"x","ratio":"high"}]}"""))
+        }
+
+        assertEquals(listOf(Kind.TypeMismatch), error.problems.map { it.kind })
+        assertEquals("'recs' → recs: expected a list of records (name, ratio), got an array of 1", error.problems.single().toString())
+        assertEquals(wrongType.problems, error.problems)
+        assertNull(source.box(FlagKey("doubles"), FlagValueType.String), "all or nothing: the valid flag was not applied")
+    }
+
+    @Test
+    fun aDoubleFieldThatReadsAsInfinityRejectsThePayloadLikeAWrongType() {
+        // -1e400 is beyond Double's range, so it reads as Double.NEGATIVE_INFINITY.
+        val error = assertFailsWith<RemoteOverrideException.Rejected> {
+            RemoteOverrideSource(RatioFlagsSpec).apply(json("""{"doubles":[{"name":"x","ratio":-1e400}]}"""))
+        }
+
+        assertEquals(listOf(Kind.TypeMismatch), error.problems.map { it.kind })
+        assertEquals(
+            "'doubles' → doubles: expected a list of records (name, ratio), got an array of 1",
+            error.problems.single().toString(),
+        )
     }
 
     @Test
