@@ -1,5 +1,9 @@
 package com.andyyhope.featureflag.values
 
+import com.andyyhope.featureflag.records.FlagRecordCodec
+import com.andyyhope.featureflag.records.FlagRecordField
+import com.andyyhope.featureflag.records.FlagRecords
+import com.andyyhope.featureflag.records.RecordJson
 import java.net.URI
 import java.time.Instant
 
@@ -63,6 +67,24 @@ public object FlagCodecs {
     /** An enum stored as its [FlagIntEnum.flagRawValue]. */
     public fun <E> intEnum(entries: List<E>): FlagCodec<E> where E : Enum<E>, E : FlagIntEnum =
         enumCodec(FlagValueType.Int, entries) { FlagValueBox.Int(it.flagRawValue) }
+
+    /**
+     * A list of records, stored as JSON text in a `string` flag. Decoding is all or nothing: one
+     * unreadable record, or two sharing a key, fails the whole list.
+     */
+    public fun <R> records(codec: FlagRecordCodec<R>): FlagCodec<FlagRecords<R>> = object : FlagCodec<FlagRecords<R>> {
+        override val type: FlagValueType = FlagValueType.String
+        override val recordShape: List<FlagRecordField> = codec.shape
+
+        override fun encode(value: FlagRecords<R>): FlagValueBox =
+            FlagValueBox.String(RecordJson.encode(value.map(codec::boxes)))
+
+        override fun decode(box: FlagValueBox): FlagRecords<R>? {
+            val text = (box as? FlagValueBox.String)?.value ?: return null
+            val records = RecordJson.decode(text, codec.shape) ?: return null
+            return FlagRecords(records.map { codec.fromBoxes(it) ?: return null })
+        }
+    }
 
     private fun <T> codec(
         valueType: FlagValueType,
