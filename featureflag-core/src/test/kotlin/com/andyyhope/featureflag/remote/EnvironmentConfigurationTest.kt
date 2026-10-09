@@ -7,19 +7,25 @@ import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @FlagContainer
@@ -233,6 +239,70 @@ class EnvironmentConfigurationTest {
         assertEquals(LayerOutcome.Absent, stale.await().remote)
     }
 
+    @Test
+    fun aStaleLoadOnAnotherThreadDoesNotWipeANewerLoadsRemoteLayer() {
+        // Staging is held inside its local loader while production loads to completion on another
+        // thread. Staging then resumes: its remote layer must not clear what production applied.
+        val config = EnvironmentConfiguration<Env>(
+            EnvFlagsSpec,
+            local = ::heldLocal,
+            remote = { env -> bytes(if (env == Env.Production) """{ "beta": true }""" else """{ "pageSize": 25 }""") },
+        )
+        val pole = FlagPole(EnvFlagsSpec, config.sources)
+
+        val (staging, production) = loadStagingAroundProduction(config)
+
+        assertEquals(LoadOutcome(LayerOutcome.Applied, LayerOutcome.Applied), production)
+        assertEquals(LoadOutcome(LayerOutcome.Superseded, LayerOutcome.Superseded), staging)
+        assertTrue(pole.flags.beta, "production's remote layer survives the stale load")
+        assertEquals("Production", pole.flags.label)
+        assertEquals(10, pole.flags.pageSize, "staging's remote values were never applied")
+    }
+
+    @Test
+    fun aStaleLoadDoesNotCallItsLoader() {
+        val remoteCalls = mutableListOf<Env>()
+        val config = EnvironmentConfiguration<Env>(
+            EnvFlagsSpec,
+            local = ::heldLocal,
+            remote = { env ->
+                synchronized(remoteCalls) { remoteCalls += env }
+                null
+            },
+        )
+
+        loadStagingAroundProduction(config)
+
+        assertEquals(listOf(Env.Production), synchronized(remoteCalls) { remoteCalls.toList() })
+    }
+
+    private val stagingEntered = CountDownLatch(1)
+    private val releaseStaging = CountDownLatch(1)
+
+    /** A local loader that holds a staging load inside it until [releaseStaging] opens. */
+    private fun heldLocal(env: Env): ByteArray {
+        if (env == Env.Staging) {
+            stagingEntered.countDown()
+            releaseStaging.await(5, TimeUnit.SECONDS)
+        }
+        return bytes("""{ "label": "${env.name}" }""")
+    }
+
+    /**
+     * Each load runs in `runBlocking` on its own thread. Staging starts first and is held in
+     * [heldLocal]; production runs to completion; then staging resumes. Returns (staging, production).
+     */
+    private fun loadStagingAroundProduction(config: EnvironmentConfiguration<Env>): Pair<LoadOutcome?, LoadOutcome?> {
+        var staging: LoadOutcome? = null
+        var production: LoadOutcome? = null
+        val stale = thread(isDaemon = true) { staging = runBlocking { config.load(Env.Staging) } }
+        assertTrue(stagingEntered.await(5, TimeUnit.SECONDS), "staging reached its local loader")
+        thread(isDaemon = true) { production = runBlocking { config.load(Env.Production) } }.join()
+        releaseStaging.countDown()
+        stale.join()
+        return staging to production
+    }
+
     // Cancellation (Review Focus 5)
 
     @Test
@@ -251,13 +321,45 @@ class EnvironmentConfigurationTest {
     }
 
     @Test
-    fun aLoaderThrowingCancellationIsRethrownRatherThanReportedAsFailed() = runTest {
+    fun aLoaderThrowingCancellationWhileTheCallerIsActiveIsReportedAsFailed() = runTest {
+        // The caller was not cancelled, so the loader's own cancellation is just how its fetch failed.
+        val gaveUp = CancellationException("the loader gave up")
+        val config = EnvironmentConfiguration<Env>(EnvFlagsSpec, local = { null }, remote = { throw gaveUp })
+
+        val outcome = config.load(Env.Staging)
+
+        assertEquals(LayerOutcome.Failed(gaveUp), outcome.remote)
+    }
+
+    @Test
+    fun aLoadersOwnTimeoutIsReportedAsFailed() = runTest {
         val config = EnvironmentConfiguration<Env>(
             EnvFlagsSpec,
             local = { null },
-            remote = { throw CancellationException("the caller gave up") },
+            remote = { withTimeout(10) { awaitCancellation() } },
         )
-        assertFailsWith<CancellationException> { config.load(Env.Staging) }
+
+        val outcome = config.load(Env.Staging)
+
+        assertIs<TimeoutCancellationException>(assertIs<LayerOutcome.Failed>(outcome.remote).error)
+        assertFalse(outcome.isComplete)
+    }
+
+    @Test
+    fun cancellingTheCallerPropagatesThroughALoaderWithItsOwnTimeout() = runTest(StandardTestDispatcher()) {
+        val config = EnvironmentConfiguration<Env>(
+            EnvFlagsSpec,
+            local = { null },
+            remote = { withTimeout(60_000) { awaitCancellation() } },
+        )
+        var outcome: LoadOutcome? = null
+
+        val loading = launch { outcome = config.load(Env.Staging) }
+        runCurrent()
+        loading.cancel()
+        loading.join()
+
+        assertNull(outcome, "the caller's cancellation propagated out of load rather than becoming an outcome")
     }
 
     // A remote loader that depends on the local layer

@@ -4,6 +4,8 @@ import com.andyyhope.featureflag.container.FlagContainerSpec
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.sources.FlagValueSource
 import com.andyyhope.featureflag.values.KeyEncoding
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -57,8 +59,14 @@ public class EnvironmentConfiguration<E>(
      * Loads both layers for an environment: local first, then remote. The outcome says what
      * happened to each, since one can succeed while the other does not.
      *
-     * Cancellation propagates rather than being reported as [LayerOutcome.Failed]. A layer
-     * cleared before the cancellation stays cleared.
+     * A load that a newer one has overtaken touches nothing more: a layer it has not started
+     * is reported [LayerOutcome.Superseded] without being cleared or its loader being called,
+     * and a layer it has started is stored only if it is still the newest load at that moment.
+     *
+     * Cancelling the caller propagates rather than being reported as [LayerOutcome.Failed]. A
+     * layer cleared before the cancellation stays cleared. A loader's own cancellation while
+     * the caller is still active, such as the `TimeoutCancellationException` of its own
+     * `withTimeout`, is a failed fetch and is reported as [LayerOutcome.Failed].
      */
     public suspend fun load(environment: E): LoadOutcome {
         val (mine, remoteLoader) = synchronized(lock) {
@@ -84,22 +92,30 @@ public class EnvironmentConfiguration<E>(
     private fun isCurrent(mine: Long): Boolean = synchronized(lock) { mine == epoch }
 
     // A loader is caller code and may throw anything; every failure becomes Failed except
-    // cancellation, which must reach the caller.
-    @Suppress("TooGenericExceptionCaught", "RethrowCaughtException")
+    // the caller's own cancellation, which must reach the caller.
+    //
+    // The clear that starts a layer and the store that ends it each check currency under the
+    // source's lock, and a newer load bumps the epoch before it clears or applies anything. So
+    // either this load sees the bump and leaves the source alone, or its clear or store
+    // completes before the newer load's own clear and apply, which then win.
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun applyLayer(
         source: RemoteOverrideSource,
         mine: Long,
         load: suspend () -> ByteArray?,
     ): LayerOutcome {
-        source.clear()
+        if (!source.clear { isCurrent(mine) }) return LayerOutcome.Superseded
         return try {
             val bytes = load() ?: return LayerOutcome.Absent
-            // Re-checked after the await: a newer load may own the source now.
+            // Re-checked after the await: a newer load may own the source now. Checked before
+            // validating, as Swift does, so stale bytes are Superseded even when they are bad,
+            // and again as part of the store, which is what makes it safe.
             if (!isCurrent(mine)) return LayerOutcome.Superseded
-            source.apply(bytes)
-            LayerOutcome.Applied
+            if (source.apply(bytes) { isCurrent(mine) } == null) LayerOutcome.Superseded else LayerOutcome.Applied
         } catch (cancelled: CancellationException) {
-            throw cancelled
+            // Rethrows when the caller was cancelled. Otherwise the loader cancelled itself.
+            currentCoroutineContext().ensureActive()
+            LayerOutcome.Failed(cancelled)
         } catch (error: Exception) {
             LayerOutcome.Failed(error)
         }

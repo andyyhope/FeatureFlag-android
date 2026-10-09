@@ -172,6 +172,18 @@ class RemoteOverrideSourceTest {
         assertNull(source.box(FlagKey("new-onboarding"), FlagValueType.Bool))
     }
 
+    @Test
+    fun aConditionalApplyOrClearWhoseConditionFailsChangesNothing() {
+        val source = makeSource()
+        source.apply(json("""{"featureToggles": {"onboarding": {"v2": true}}}"""))
+
+        assertNull(source.apply(json("""{"featureToggles": {"checkout": {"applePay": true}}}""")) { false })
+        assertFalse(source.clear { false })
+
+        assertEquals(FlagValueBox.Bool(true), source.box(FlagKey("new-onboarding"), FlagValueType.Bool))
+        assertNull(source.box(FlagKey("checkout.apple-pay"), FlagValueType.Bool))
+    }
+
     // Strict typing
 
     @Test

@@ -41,6 +41,10 @@ public class RemoteOverrideSource(
         sourceName: String = "Remote",
     ) : this(FlagSchema.of(spec, keyEncoding), mapper, sourceName)
 
+    // Serialises the swaps of values, so a conditional commit is atomic with respect to every other
+    // apply and clear. Reads take no lock, and nothing is emitted while it is held.
+    private val lock = Any()
+
     @Volatile
     private var values: Map<FlagKey, FlagValueBox> = emptyMap()
 
@@ -59,13 +63,21 @@ public class RemoteOverrideSource(
     public fun apply(json: ByteArray): RemoteApplyResult = apply(RemoteValue.parseJson(json))
 
     /** Applies an already-decoded payload; see the [ByteArray] overload. */
-    public fun apply(payload: RemoteValue): RemoteApplyResult {
+    public fun apply(payload: RemoteValue): RemoteApplyResult = checkNotNull(apply(payload) { true })
+
+    /**
+     * Validates [json] as the public overload does, then stores it only if [commitIf] still holds
+     * at the moment of the store. Returns `null`, having stored and announced nothing, when it does not.
+     */
+    internal fun apply(json: ByteArray, commitIf: () -> Boolean): RemoteApplyResult? =
+        apply(RemoteValue.parseJson(json), commitIf)
+
+    private fun apply(payload: RemoteValue, commitIf: () -> Boolean): RemoteApplyResult? {
         val mapping = schema.mapRemote(payload, mapper)
         if (mapping.problems.isNotEmpty()) {
             throw RemoteOverrideException.Rejected(mapping.problems.sortedBy { it.key.rawValue })
         }
-        values = mapping.boxes
-        emitter.emit(FlagChange.All)
+        if (!swap(mapping.boxes, commitIf)) return null
         return RemoteApplyResult(
             appliedKeys = mapping.boxes.keys.sortedBy { it.rawValue },
             absentKeys = schema.flags.filter { it.remoteKey != null && it.key !in mapping.boxes }.map { it.key },
@@ -74,7 +86,17 @@ public class RemoteOverrideSource(
 
     /** Drops every remote value, so flags fall through to the sources beneath. */
     public fun clear() {
-        values = emptyMap()
-        emitter.emit(FlagChange.All)
+        swap(emptyMap()) { true }
+    }
+
+    /** Drops every remote value only if [commitIf] holds at that moment. Returns whether it did. */
+    internal fun clear(commitIf: () -> Boolean): Boolean = swap(emptyMap(), commitIf)
+
+    private fun swap(replacement: Map<FlagKey, FlagValueBox>, commitIf: () -> Boolean): Boolean {
+        val committed = synchronized(lock) {
+            commitIf().also { if (it) values = replacement }
+        }
+        if (committed) emitter.emit(FlagChange.All)
+        return committed
     }
 }
