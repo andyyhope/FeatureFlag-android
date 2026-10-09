@@ -74,7 +74,9 @@ public object FlagCodecs {
      */
     public fun <R> records(codec: FlagRecordCodec<R>): FlagCodec<FlagRecords<R>> = object : FlagCodec<FlagRecords<R>> {
         override val type: FlagValueType = FlagValueType.String
-        override val recordShape: List<FlagRecordField> = codec.shape
+        // Read on use: a record whose prototype throws must fail when a schema is built, not while
+        // the spec object that holds this codec initialises (which would be ExceptionInInitializerError).
+        override val recordShape: List<FlagRecordField> get() = codec.shape
 
         override fun encode(value: FlagRecords<R>): FlagValueBox =
             FlagValueBox.String(RecordJson.encode(value.map(codec::boxes)))
