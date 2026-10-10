@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "int-flag",
+      "kind" : "typeMismatch",
+      "message" : "'numbers.int' → int-flag: expected int, got 1e+19",
+      "remoteKey" : "numbers.int"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'numbers.int' → int-flag: expected int, got 1e+19\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

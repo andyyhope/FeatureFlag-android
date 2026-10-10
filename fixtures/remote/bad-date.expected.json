@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "date-flag",
+      "kind" : "typeMismatch",
+      "message" : "'dates.launch' → date-flag: expected date, got \"2026-01-01\"",
+      "remoteKey" : "dates.launch"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'dates.launch' → date-flag: expected date, got \"2026-01-01\"\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

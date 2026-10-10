@@ -62,7 +62,7 @@ enum class Tier(override val flagRawValue: String) : FlagStringEnum { FREE("free
 Generated per container, in the same package and visibility: `XSpec : XRefs, FlagContainerSpec<X>`, containing:
 - `flagDescriptors`;
 - `flagDefaults`, an `object : X` (so a missing default fails to compile, backed by a KSP diagnostic);
-- `createFlags(lookup, prefix)`, a private `Impl` that reads the stack and falls back to `super<X>.prop`;
+- `createFlags(lookup, prefix)`, a private `Impl` that reads the stack and falls back to `XSpec.prop.defaultValue`: the default getter, evaluated once against `flagDefaults`, so `pole.flags`, `pole[ref]`, `flow(ref)`, `resolution(ref)` and the schema all report the same default (a getter that reads another flag sees that flag's compiled default);
 - the typed `FlagRef` tree.
 
 Groups and records in other modules are found by naming convention (`XSpec`, `RFlagRecord`).

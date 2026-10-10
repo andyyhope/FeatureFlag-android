@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Local config — never commit
+local.properties
+
+# OS
+.DS_Store
+
+# Kotlin build session caches
+.kotlin/
+
+# Swift fixture generator (SwiftPM build output + workspace state)
+fixture-generator/.build/
+fixture-generator/.swiftpm/

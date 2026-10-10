@@ -1,0 +1,58 @@
+	nil
+ 	%20
+a b	a%20b
+https://example.com	https://example.com
+https://example.com/a/b?c=d	https://example.com/a/b?c=d
+https://example.com/a b	https://example.com/a%20b
+https://例え.jp/パス	https://xn--r8jz45g.jp/%E3%83%91%E3%82%B9
+http://[::1]:8080/x	http://[::1]:8080/x
+%	%25
+https://example.com/%zz	https://example.com/%25zz
+not a url	not%20a%20url
+://	://
+mailto:x@y.z	mailto:x@y.z
+http://a.com/ü	http://a.com/%C3%BC
+#frag	#frag
+?q	?q
+a/b	a/b
+https://exa mple.com	nil
+https://example.com/a?b=c d#e f	https://example.com/a?b=c%20d#e%20f
+https://example.com/"q"	https://example.com/%22q%22
+https://example.com/<x>	https://example.com/%3Cx%3E
+https://example.com/a|b	https://example.com/a%7Cb
+https://example.com/a\\b	https://example.com/a%5Cb
+https://example.com/{x}	https://example.com/%7Bx%7D
+https://example.com/^	https://example.com/%5E
+https://example.com/`	https://example.com/%60
+http://a.com:abc/	nil
+http://a.com:99999/	http://a.com:99999/
+http://[zz]/	http://[zz]/
+https://example.com/a%20b	https://example.com/a%20b
+HTTPS://Example.COM/A	HTTPS://Example.COM/A
+https://example.com/a\tb	https://example.com/a%09b
+https://example.com/a\nb	https://example.com/a%0Ab
+ https://example.com	nil
+https://example.com 	nil
+file:///tmp/x	file:///tmp/x
+urn:isbn:0451450523	urn:isbn:0451450523
+https://user:pa ss@example.com/	https://user:pa%20ss@example.com/
+https://example.com/😀	https://example.com/%F0%9F%98%80
+https://example.com/path?q=1&r=a%20b#frag	https://example.com/path?q=1&r=a%20b#frag
+https://prod.example.com	https://prod.example.com
+https://example.com:443/	https://example.com:443/
+ftp://ftp.example.com/file.txt	ftp://ftp.example.com/file.txt
+data:text/plain;base64,SGk=	data:text/plain;base64,SGk=
+https://example.com/a%2Fb	https://example.com/a%2Fb
+//example.com/path	//example.com/path
+/relative/path	/relative/path
+relative	relative
+https://	https://
+https:	https:
+http://a.com/%E2%82%AC	http://a.com/%E2%82%AC
+http://a.com/€	http://a.com/%E2%82%AC
+https://example.com/#	https://example.com/#
+https://example.com/?	https://example.com/?
+custom-scheme://host/path	custom-scheme://host/path
+1http://x	nil
+a:b:c	a:b:c
+https://a.com/[x]	https://a.com/%5Bx%5D

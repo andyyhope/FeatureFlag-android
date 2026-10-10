@@ -1,0 +1,1 @@
+The App Group 'group.com.example' could not be opened. Add it to this target's entitlements, and check it matches the host's exactly.

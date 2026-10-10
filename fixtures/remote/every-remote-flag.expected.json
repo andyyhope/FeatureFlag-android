@@ -1,0 +1,36 @@
+{
+  "absent" : [
+
+  ],
+  "applied" : [
+    "bool-flag",
+    "checkout.apple-pay",
+    "date-flag",
+    "double-flag",
+    "endpoints",
+    "int-flag",
+    "markets",
+    "string-flag",
+    "tier",
+    "url-flag"
+  ],
+  "problems" : [
+
+  ],
+  "values" : {
+    "bool-flag" : true,
+    "checkout.apple-pay" : false,
+    "date-flag" : "2026-06-01T09:30:00Z",
+    "double-flag" : 2.5,
+    "endpoints" : "[{\"kind\":\"free\",\"name\":\"edge\",\"note\":\"from backend\",\"targets\":\"[{\\\"host\\\":\\\"a.example\\\",\\\"port\\\":443}]\",\"url\":\"https://edge.example\",\"weight\":1}]",
+    "int-flag" : 7,
+    "markets" : [
+      "AU",
+      "NZ",
+      "GB"
+    ],
+    "string-flag" : "remote",
+    "tier" : "pro",
+    "url-flag" : "https://remote.example/x"
+  }
+}

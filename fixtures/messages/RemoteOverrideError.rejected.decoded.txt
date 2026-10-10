@@ -1,0 +1,11 @@
+Nothing was applied. 9 problems:
+  • 'toggles.boolean' → bool-flag: expected bool, got "true"
+  • 'featureToggles.checkout.applePay' → checkout.apple-pay: expected bool, got 0
+  • 'dates.launch' → date-flag: expected date, got 1767225600
+  • 'numbers.double' → double-flag: expected double, got an array of 1
+  • 'config.endpoints' → endpoints: expected every record to have its own name, got two with "a"
+  • 'numbers.int' → int-flag: expected int, got 1.5
+  • 'config.markets' → markets: expected array<string>, got an array of 3
+  • 'tier' → tier: "Platinum Plus Ultra Extreme Deluxe Editi…" is not one of free, pro, enterprise
+  • 'config.endpoint' → url-flag: expected url, got an object with 1 field(s)
+A remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source.

@@ -1,0 +1,16 @@
+Flag mapping audit — incomplete.
+  absent (10) — a flag declares this path, the payload has nothing there:
+    • bool-flag
+    • checkout.apple-pay
+    • date-flag
+    • double-flag
+    • endpoints
+    • int-flag
+    • markets
+    • string-flag
+    • tier
+    • url-flag
+  unconsumed (2) — no flag reads these:
+    • 0
+    • 1
+  0 of 10 remotely-overridable flags applied.

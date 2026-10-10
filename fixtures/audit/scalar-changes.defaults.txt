@@ -1,0 +1,8 @@
+Default vs config:
+  changes (6):
+    • date-flag: 2026-01-01T00:00:00Z → 2026-06-01T09:30:00Z
+    • double-flag: 0.1 → 0.30000000000000004
+    • int-flag: 42 → 10000000000
+    • markets: an array of 2 → an array of 1
+    • string-flag: "hello/world "quoted"" → "a much longer string than forty characte…"
+    • url-flag: "https://example.com/a/b?c=d" → "https://remote.example/x"

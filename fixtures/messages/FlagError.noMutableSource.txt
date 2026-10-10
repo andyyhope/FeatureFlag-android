@@ -1,0 +1,1 @@
+No source in the stack can be written to. Add a UserDefaultsSource or a SnapshotSource — a pole built only from read-only sources has nowhere to put an override.

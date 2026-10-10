@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "endpoints",
+      "kind" : "typeMismatch",
+      "message" : "'config.endpoints' → endpoints: expected a list of records (name, url, weight, note, kind, targets), got an array of 1",
+      "remoteKey" : "config.endpoints"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'config.endpoints' → endpoints: expected a list of records (name, url, weight, note, kind, targets), got an array of 1\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

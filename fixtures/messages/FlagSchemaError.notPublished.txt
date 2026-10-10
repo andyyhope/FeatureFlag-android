@@ -1,0 +1,1 @@
+No schema has been published. The host app writes one with publishSchema(), so run it at least once — and check both targets declare the same App Group in their entitlements.

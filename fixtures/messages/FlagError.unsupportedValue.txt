@@ -1,0 +1,1 @@
+The source refused the value for 'checkout.apple-pay' because it cannot represent it. Property list storage accepts a narrower set of types than a flag can declare.

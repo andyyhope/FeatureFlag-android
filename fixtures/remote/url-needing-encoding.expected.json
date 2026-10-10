@@ -1,0 +1,22 @@
+{
+  "absent" : [
+    "bool-flag",
+    "int-flag",
+    "double-flag",
+    "string-flag",
+    "date-flag",
+    "markets",
+    "tier",
+    "endpoints",
+    "checkout.apple-pay"
+  ],
+  "applied" : [
+    "url-flag"
+  ],
+  "problems" : [
+
+  ],
+  "values" : {
+    "url-flag" : "https://example.com/a%20b/%C3%BC"
+  }
+}

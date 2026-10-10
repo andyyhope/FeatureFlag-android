@@ -1,0 +1,15 @@
+Nothing was applied. 13 problems:
+  • bool-flag: expected bool, got 1
+  • checkout.tier: expected string, got true
+  • data-flag: expected data, got "not base64!"
+  • date-flag: expected date, got "2026-13-01T00:00:00Z"
+  • double-flag: expected double, got "1.5"
+  • endpoints: expected every record to have its own name, got two with "a"
+  • int-flag: expected int, got "a very long string with a \n newline, a …"
+  • level: 7 is not one of int(1), int(2), int(3)
+  • limits: expected dictionary<int>, got an object with 1 field(s)
+  • markets: expected array<string>, got an object with 2 field(s)
+  • tier: "platinum" is not one of free, pro, enterprise
+  • unknown-flag: no flag has this key. The document came from a different app, or from a build where the flag was named differently
+  • url-flag: expected url, got ""
+Import is all or nothing, so no flag was changed.

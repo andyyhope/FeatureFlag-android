@@ -1,0 +1,13 @@
+Default vs config:
+  every supplied value matches the compiled default.
+  restated (10) — same as the default, could be omitted:
+    • bool-flag
+    • checkout.apple-pay
+    • date-flag
+    • double-flag
+    • endpoints
+    • int-flag
+    • markets
+    • string-flag
+    • tier
+    • url-flag

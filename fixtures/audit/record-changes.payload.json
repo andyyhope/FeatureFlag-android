@@ -1,0 +1,1 @@
+{"config":{"endpoints":[{"name":"prod","url":"https://prod.example.com","weight":5,"kind":"pro","memo":"hello"},{"name":"canary","url":"https://canary.example"}]}}

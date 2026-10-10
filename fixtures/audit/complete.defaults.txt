@@ -1,0 +1,14 @@
+Default vs config:
+  changes (10):
+    • bool-flag: false → true
+    • checkout.apple-pay: true → false
+    • date-flag: 2026-01-01T00:00:00Z → 2026-06-01T09:30:00Z
+    • double-flag: 0.1 → 2.5
+    • endpoints:
+        - prod
+        + edge
+    • int-flag: 42 → 7
+    • markets: an array of 2 → an array of 3
+    • string-flag: "hello/world "quoted"" → "remote"
+    • tier: "free" → "pro"
+    • url-flag: "https://example.com/a/b?c=d" → "https://remote.example/x"

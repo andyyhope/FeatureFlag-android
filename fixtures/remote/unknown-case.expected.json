@@ -1,0 +1,11 @@
+{
+  "problems" : [
+    {
+      "key" : "tier",
+      "kind" : "unknownCase",
+      "message" : "'tier' → tier: \"platinum\" is not one of free, pro, enterprise",
+      "remoteKey" : "tier"
+    }
+  ],
+  "rejected" : "Nothing was applied. 1 problem:\n  • 'tier' → tier: \"platinum\" is not one of free, pro, enterprise\nA remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source."
+}

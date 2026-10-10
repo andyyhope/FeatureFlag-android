@@ -1,0 +1,79 @@
+package app
+
+import com.andyyhope.featureflag.container.FlagContainerSpec
+import com.andyyhope.featureflag.container.FlagLookup
+import com.andyyhope.featureflag.container.FlagRef
+import com.andyyhope.featureflag.container.read
+import com.andyyhope.featureflag.schema.FlagDescriptor
+import com.andyyhope.featureflag.schema.FlagGroupDescriptor
+import com.andyyhope.featureflag.schema.FlagSchemaNode
+import com.andyyhope.featureflag.values.FlagCodecs
+import com.andyyhope.featureflag.values.FlagKey
+import com.andyyhope.featureflag.values.FlagKeyPath
+import com.andyyhope.featureflag.values.KeyEncoding
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.listOf
+import kotlin.lazy
+
+public open class AppFlagsRefs(
+  prefix: FlagKeyPath,
+) {
+  public val newOnboarding: FlagRef<Boolean> =
+      FlagRef(prefix.appending("newOnboarding"), "newOnboarding", "New onboarding", "featureToggles.onboarding.v2", FlagCodecs.boolean) {
+        if (this === AppFlagsSpec) AppFlagsSpec.flagDefaults.newOnboarding else AppFlagsSpec.newOnboarding.defaultValue
+      }
+
+  public val maxItems: FlagRef<Int> =
+      FlagRef(prefix.appending("maxItems"), "maxItems", "Maximum items", null, FlagCodecs.int) {
+        if (this === AppFlagsSpec) AppFlagsSpec.flagDefaults.maxItems else AppFlagsSpec.maxItems.defaultValue
+      }
+
+  public val checkout: CheckoutFlagsRefs = CheckoutFlagsRefs(prefix.appending("checkout"))
+}
+
+public object AppFlagsSpec : AppFlagsRefs(FlagKeyPath.ROOT), FlagContainerSpec<AppFlags> {
+  override val flagContainerDescription: String? = "Everything the checkout team can turn on"
+
+  override val flagDefaults: AppFlags = object : AppFlags {
+    override val checkout: CheckoutFlags
+      get() = CheckoutFlagsSpec.flagDefaults
+  }
+
+  override val flagDescriptors: List<FlagSchemaNode> by lazy {
+        listOf(
+          FlagSchemaNode.Flag(FlagDescriptor.of("newOnboarding", "New onboarding", "featureToggles.onboarding.v2", newOnboarding.codec, newOnboarding.defaultValue)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("maxItems", "Maximum items", null, maxItems.codec, maxItems.defaultValue)),
+          FlagSchemaNode.Group(FlagGroupDescriptor("checkout", FlagKeyPath(listOf("checkout")), "Checkout", CheckoutFlagsSpec.flagDescriptors.map { it.prefixed("checkout") })),
+        )
+      }
+
+  override fun createFlags(lookup: FlagLookup, prefix: FlagKeyPath): AppFlags = Impl(lookup, prefix)
+
+  private class Impl(
+    private val flagLookup: FlagLookup,
+    flagPrefix: FlagKeyPath,
+  ) : AppFlags {
+    private val flagKeys: Keys = Keys(flagLookup.keyEncoding, flagPrefix)
+
+    override val newOnboarding: Boolean
+      get() = flagLookup.read(flagKeys.newOnboarding, AppFlagsSpec.newOnboarding.codec) { AppFlagsSpec.newOnboarding.defaultValue }
+
+    override val maxItems: Int
+      get() = flagLookup.read(flagKeys.maxItems, AppFlagsSpec.maxItems.codec) { AppFlagsSpec.maxItems.defaultValue }
+
+    override val checkout: CheckoutFlags =
+        CheckoutFlagsSpec.createFlags(flagLookup, flagPrefix.appending("checkout"))
+  }
+
+  private class Keys(
+    encoding: KeyEncoding,
+    prefix: FlagKeyPath,
+  ) {
+    public val newOnboarding: FlagKey = encoding.key(prefix.appending("newOnboarding"))
+
+    public val maxItems: FlagKey = encoding.key(prefix.appending("maxItems"))
+  }
+}

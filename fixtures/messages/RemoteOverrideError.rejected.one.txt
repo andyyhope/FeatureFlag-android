@@ -1,0 +1,3 @@
+Nothing was applied. 1 problem:
+  • 'featureToggles.onboarding' → new-onboarding: expected bool, got "yes"
+A remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source.

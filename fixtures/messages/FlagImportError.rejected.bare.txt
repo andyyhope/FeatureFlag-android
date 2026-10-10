@@ -1,0 +1,5 @@
+Nothing was applied. 3 problems:
+  • a: expected another type
+  • b: that value is not one of this flag's cases
+  • c: no flag has this key. The document came from a different app, or from a build where the flag was named differently
+Import is all or nothing, so no flag was changed.

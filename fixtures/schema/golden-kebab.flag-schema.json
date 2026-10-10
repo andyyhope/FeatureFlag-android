@@ -1,0 +1,288 @@
+{
+  "applicationName" : "Golden",
+  "description" : "Every flag type, for cross-platform golden fixtures",
+  "flags" : [
+    {
+      "defaultValue" : false,
+      "description" : "A boolean",
+      "key" : "bool-flag",
+      "propertyPath" : [
+        "boolFlag"
+      ],
+      "remoteKey" : "toggles.boolean",
+      "valueType" : "bool"
+    },
+    {
+      "defaultValue" : 42,
+      "description" : "An integer",
+      "key" : "int-flag",
+      "propertyPath" : [
+        "intFlag"
+      ],
+      "remoteKey" : "numbers.int",
+      "valueType" : "int"
+    },
+    {
+      "defaultValue" : 0.10000000000000001,
+      "description" : "A double",
+      "key" : "double-flag",
+      "propertyPath" : [
+        "doubleFlag"
+      ],
+      "remoteKey" : "numbers.double",
+      "valueType" : "double"
+    },
+    {
+      "defaultValue" : 0.10000000149011612,
+      "description" : "A float",
+      "key" : "float-flag",
+      "propertyPath" : [
+        "floatFlag"
+      ],
+      "valueType" : "float"
+    },
+    {
+      "defaultValue" : "hello/world \"quoted\"",
+      "description" : "A string",
+      "key" : "string-flag",
+      "propertyPath" : [
+        "stringFlag"
+      ],
+      "remoteKey" : "strings.plain",
+      "valueType" : "string"
+    },
+    {
+      "defaultValue" : "AAEC/v8=",
+      "description" : "Some bytes",
+      "key" : "data-flag",
+      "propertyPath" : [
+        "dataFlag"
+      ],
+      "valueType" : "data"
+    },
+    {
+      "defaultValue" : "2026-01-01T00:00:00Z",
+      "description" : "A date",
+      "key" : "date-flag",
+      "propertyPath" : [
+        "dateFlag"
+      ],
+      "remoteKey" : "dates.launch",
+      "valueType" : "date"
+    },
+    {
+      "defaultValue" : "https://example.com/a/b?c=d",
+      "description" : "A URL",
+      "key" : "url-flag",
+      "propertyPath" : [
+        "urlFlag"
+      ],
+      "remoteKey" : "config.endpoint",
+      "valueType" : "url"
+    },
+    {
+      "defaultValue" : false,
+      "description" : "Uses an acronym",
+      "key" : "use-https-only",
+      "propertyPath" : [
+        "useHTTPSOnly"
+      ],
+      "valueType" : "bool"
+    },
+    {
+      "defaultValue" : [
+        "AU",
+        "NZ"
+      ],
+      "description" : "Markets",
+      "key" : "markets",
+      "propertyPath" : [
+        "markets"
+      ],
+      "remoteKey" : "config.markets",
+      "valueType" : "array<string>"
+    },
+    {
+      "defaultValue" : [
+        [
+          true
+        ],
+        [
+          false,
+          true
+        ]
+      ],
+      "description" : "Nested arrays",
+      "key" : "matrix",
+      "propertyPath" : [
+        "matrix"
+      ],
+      "valueType" : "array<array<bool>>"
+    },
+    {
+      "defaultValue" : {
+        "a" : 1,
+        "b" : 2,
+        "v2" : 2,
+        "v10" : 10
+      },
+      "description" : "Limits by name",
+      "key" : "limits",
+      "propertyPath" : [
+        "limits"
+      ],
+      "valueType" : "dictionary<int>"
+    },
+    {
+      "cases" : [
+        "free",
+        "pro",
+        "enterprise"
+      ],
+      "defaultValue" : "free",
+      "description" : "A string enum",
+      "key" : "tier",
+      "propertyPath" : [
+        "tier"
+      ],
+      "remoteKey" : "tier",
+      "valueType" : "string"
+    },
+    {
+      "cases" : [
+        1,
+        2,
+        3
+      ],
+      "defaultValue" : 2,
+      "description" : "An int enum",
+      "key" : "level",
+      "propertyPath" : [
+        "level"
+      ],
+      "valueType" : "int"
+    },
+    {
+      "defaultValue" : "[{\"kind\":\"free\",\"name\":\"prod\",\"targets\":\"[]\",\"url\":\"https://prod.example.com\",\"weight\":1}]",
+      "description" : "Endpoints",
+      "key" : "endpoints",
+      "propertyPath" : [
+        "endpoints"
+      ],
+      "recordShape" : [
+        {
+          "isKey" : true,
+          "name" : "name",
+          "type" : "string"
+        },
+        {
+          "name" : "url",
+          "type" : "url"
+        },
+        {
+          "default" : 1,
+          "name" : "weight",
+          "type" : "int"
+        },
+        {
+          "decodedName" : "memo",
+          "isOptional" : true,
+          "name" : "note",
+          "type" : "string"
+        },
+        {
+          "cases" : [
+            "free",
+            "pro",
+            "enterprise"
+          ],
+          "default" : "free",
+          "name" : "kind",
+          "type" : "string"
+        },
+        {
+          "default" : "[]",
+          "fields" : [
+            {
+              "name" : "host",
+              "type" : "string"
+            },
+            {
+              "name" : "port",
+              "type" : "int"
+            }
+          ],
+          "name" : "targets",
+          "type" : "string"
+        }
+      ],
+      "remoteKey" : "config.endpoints",
+      "valueType" : "string"
+    },
+    {
+      "defaultValue" : true,
+      "description" : "Offer Apple Pay",
+      "key" : "checkout.apple-pay",
+      "propertyPath" : [
+        "checkout",
+        "applePay"
+      ],
+      "remoteKey" : "featureToggles.checkout.applePay",
+      "valueType" : "bool"
+    },
+    {
+      "cases" : [
+        "free",
+        "pro",
+        "enterprise"
+      ],
+      "defaultValue" : "pro",
+      "description" : "Tier at checkout",
+      "key" : "checkout.tier",
+      "propertyPath" : [
+        "checkout",
+        "tier"
+      ],
+      "valueType" : "string"
+    },
+    {
+      "defaultValue" : false,
+      "description" : "One-tap purchase",
+      "key" : "checkout.express.one-tap",
+      "propertyPath" : [
+        "checkout",
+        "express",
+        "oneTap"
+      ],
+      "valueType" : "bool"
+    },
+    {
+      "defaultValue" : 3,
+      "description" : "Seconds before confirming",
+      "key" : "checkout.express.confirmation-delay",
+      "propertyPath" : [
+        "checkout",
+        "express",
+        "confirmationDelay"
+      ],
+      "valueType" : "double"
+    }
+  ],
+  "formatVersion" : 1,
+  "generatedAt" : "2026-01-01T00:00:00Z",
+  "groups" : [
+    {
+      "description" : "Checkout",
+      "propertyPath" : [
+        "checkout"
+      ]
+    },
+    {
+      "description" : "Express checkout",
+      "propertyPath" : [
+        "checkout",
+        "express"
+      ]
+    }
+  ]
+}

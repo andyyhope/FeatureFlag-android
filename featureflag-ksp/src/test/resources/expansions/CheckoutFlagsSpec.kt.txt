@@ -1,0 +1,70 @@
+package app
+
+import com.andyyhope.featureflag.container.FlagContainerSpec
+import com.andyyhope.featureflag.container.FlagLookup
+import com.andyyhope.featureflag.container.FlagRef
+import com.andyyhope.featureflag.container.read
+import com.andyyhope.featureflag.schema.FlagDescriptor
+import com.andyyhope.featureflag.schema.FlagSchemaNode
+import com.andyyhope.featureflag.values.FlagCodecs
+import com.andyyhope.featureflag.values.FlagKey
+import com.andyyhope.featureflag.values.FlagKeyPath
+import com.andyyhope.featureflag.values.KeyEncoding
+import kotlin.Boolean
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.listOf
+import kotlin.lazy
+
+public open class CheckoutFlagsRefs(
+  prefix: FlagKeyPath,
+) {
+  public val applePay: FlagRef<Boolean> =
+      FlagRef(prefix.appending("applePay"), "applePay", "Apple Pay", null, FlagCodecs.boolean) {
+        if (this === CheckoutFlagsSpec) CheckoutFlagsSpec.flagDefaults.applePay else CheckoutFlagsSpec.applePay.defaultValue
+      }
+
+  public val tier: FlagRef<Tier> =
+      FlagRef(prefix.appending("tier"), "tier", "Tier", null, FlagCodecs.enumByName(Tier.entries)) {
+        if (this === CheckoutFlagsSpec) CheckoutFlagsSpec.flagDefaults.tier else CheckoutFlagsSpec.tier.defaultValue
+      }
+}
+
+public object CheckoutFlagsSpec : CheckoutFlagsRefs(FlagKeyPath.ROOT),
+    FlagContainerSpec<CheckoutFlags> {
+  override val flagContainerDescription: String? = null
+
+  override val flagDefaults: CheckoutFlags = object : CheckoutFlags {
+  }
+
+  override val flagDescriptors: List<FlagSchemaNode> by lazy {
+        listOf(
+          FlagSchemaNode.Flag(FlagDescriptor.of("applePay", "Apple Pay", null, applePay.codec, applePay.defaultValue)),
+          FlagSchemaNode.Flag(FlagDescriptor.of("tier", "Tier", null, tier.codec, tier.defaultValue)),
+        )
+      }
+
+  override fun createFlags(lookup: FlagLookup, prefix: FlagKeyPath): CheckoutFlags = Impl(lookup, prefix)
+
+  private class Impl(
+    private val flagLookup: FlagLookup,
+    flagPrefix: FlagKeyPath,
+  ) : CheckoutFlags {
+    private val flagKeys: Keys = Keys(flagLookup.keyEncoding, flagPrefix)
+
+    override val applePay: Boolean
+      get() = flagLookup.read(flagKeys.applePay, CheckoutFlagsSpec.applePay.codec) { CheckoutFlagsSpec.applePay.defaultValue }
+
+    override val tier: Tier
+      get() = flagLookup.read(flagKeys.tier, CheckoutFlagsSpec.tier.codec) { CheckoutFlagsSpec.tier.defaultValue }
+  }
+
+  private class Keys(
+    encoding: KeyEncoding,
+    prefix: FlagKeyPath,
+  ) {
+    public val applePay: FlagKey = encoding.key(prefix.appending("applePay"))
+
+    public val tier: FlagKey = encoding.key(prefix.appending("tier"))
+  }
+}

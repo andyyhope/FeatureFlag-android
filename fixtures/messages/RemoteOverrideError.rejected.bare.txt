@@ -1,0 +1,5 @@
+Nothing was applied. 3 problems:
+  • 'x.a' → a: expected another type
+  • 'x.b' → b: that value is not one of this flag's cases
+  • new-onbaording: no flag has this key, so the mapper that produced it is wrong
+A remote payload is all or nothing, so one bad value leaves every other flag reading whatever sits below this source.

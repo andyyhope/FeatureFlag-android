@@ -1,0 +1,8 @@
+Default vs config:
+  changes (1):
+    • endpoints:
+        ~ prod:
+            weight: 1 → 5
+            note: unset → "hello"
+            kind: "free" → "pro"
+        + canary

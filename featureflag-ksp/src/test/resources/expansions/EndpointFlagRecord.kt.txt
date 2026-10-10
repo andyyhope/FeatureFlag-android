@@ -1,0 +1,68 @@
+package app
+
+import com.andyyhope.featureflag.records.FlagRecordCodec
+import com.andyyhope.featureflag.records.FlagRecordField
+import com.andyyhope.featureflag.records.FlagRecords
+import com.andyyhope.featureflag.values.FlagCodec
+import com.andyyhope.featureflag.values.FlagCodecs
+import com.andyyhope.featureflag.values.FlagValueBox
+import kotlin.Exception
+import kotlin.IllegalStateException
+import kotlin.Int
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.buildMap
+import kotlin.collections.listOf
+import kotlin.lazy
+
+public object EndpointFlagRecord : FlagRecordCodec<Endpoint> {
+  private val nameCodec: FlagCodec<String> = FlagCodecs.string
+
+  private val weightCodec: FlagCodec<Int> = FlagCodecs.int
+
+  private val noteCodec: FlagCodec<String> = FlagCodecs.string
+
+  private val tierCodec: FlagCodec<Tier> = FlagCodecs.enumByName(Tier.entries)
+
+  override val keyField: String? = "name"
+
+  override val shape: List<FlagRecordField> by lazy {
+    val defaults = prototype()
+    listOf(
+      FlagRecordField.of("name", nameCodec, isKey = true),
+      FlagRecordField.of("weight", weightCodec, default = defaults.weight),
+      FlagRecordField.of("note", noteCodec, isOptional = true, decodedName = "memo"),
+      FlagRecordField.of("tier", tierCodec, default = defaults.tier),
+    )
+  }
+
+  override fun boxes(record: Endpoint): Map<String, FlagValueBox> = buildMap {
+    put("name", nameCodec.encode(record.name))
+    put("weight", weightCodec.encode(record.weight))
+    record.note?.let { put("note", noteCodec.encode(it)) }
+    put("tier", tierCodec.encode(record.tier))
+  }
+
+  override fun fromBoxes(boxes: Map<String, FlagValueBox>): Endpoint? {
+    val record = Endpoint(
+      name = boxes["name"]?.let(nameCodec::decode) ?: return null,
+      weight = boxes["weight"]?.let(weightCodec::decode) ?: return null,
+      note = boxes["note"]?.let(noteCodec::decode),
+      tier = boxes["tier"]?.let(tierCodec::decode) ?: return null,
+    )
+    return record
+  }
+
+  private fun prototype(): Endpoint = try {
+    Endpoint(name = "")
+  } catch (e: Exception) {
+    throw IllegalStateException("Could not read the field defaults of 'Endpoint': its constructor threw when 'EndpointFlagRecord' called it with placeholder values (false, 0, \"\", empty, an enum's first case) for the fields that have no default. Give those fields defaults the constructor accepts.", e)
+  }
+}
+
+public operator fun FlagRecords<Endpoint>.`get`(key: String): Endpoint? {
+  val codec = FlagCodecs.string
+  val wanted = codec.encode(key)
+  return firstOrNull { codec.encode(it.name) == wanted }
+}
