@@ -128,10 +128,12 @@ The provider authority is `<hostAppId>.featureflag`, guarded by the permission `
 | observe | `ContentObserver` on `content://A/overrides` | the provider's prefs listener calls `notifyChange` |
 
 Rules:
-- `call()` is **not** permission-guarded by the framework. The provider calls `enforceCallingPermission` itself, and a test covers it.
+- **Permission checks:** the provider declares `android:permission`, so the framework refuses to open it for a caller without the permission. `acquire…ContentProviderClient` throws `SecurityException` before any `call()`, `openFile` or observer registration runs (S6). The provider still calls `enforceCallingPermission` in `call()` as defence in depth, and a test covers that check.
 - The client always uses `acquireUnstableContentProviderClient` and runs calls on IO with `withTimeoutOrNull`.
-- **Startup barrier:** on its first request, the provider posts to the main looper and waits. That way a cold-started host has finished `Application.onCreate` (schema published, signal observers registered) before it answers.
-- **Companion manifest:** needs `<uses-permission>` and `<queries><package>`. The client checks both at runtime and names whichever is missing.
+  - A `SecurityException` from acquire maps to `PermissionDenied`.
+  - A `DeadObjectException` mid-call means the host died. The client closes the old client and reacquires once. The unstable client survives the host's death, and the companion is not killed (S6).
+- **Startup barrier:** on its first request, the provider posts to the main looper and waits. That way a cold-started host has finished `Application.onCreate` (schema published, signal observers registered) before it answers. S6 showed the barrier is required: a cold `call()` arrives on a binder thread while `Application.onCreate` is still running. The client's timeout must therefore cover a host cold start.
+- **Companion manifest:** needs only `<uses-permission>` for the host's bridge permission. Requesting a permission the host defines makes the host visible to the companion without `<queries>`, even when the permission is denied (S6). Without the `<uses-permission>`, the host is invisible and `acquire…` returns `null`. The client checks its own `requestedPermissions` at runtime and names the missing `<uses-permission>`.
 
 `SharedPreferencesSource` behaviour:
 - **Storage:** Boolean, Long, Float and String are stored natively; every other type is stored as its JSON value text.
@@ -154,7 +156,24 @@ These are finer-grained than iOS's two failure messages.
 - **Host:** `FlagSignalChannel.host.observe(CacheSignal.entries) { … }` returns an `AutoCloseable`, and handlers run on the main thread. Register observers in `Application.onCreate`.
 - **Companion:** `client.send(signal, timeout = 5.seconds): Boolean`, which shows as handled, "handled — relaunch to see it", or no response.
 - **Dropped from the iOS protocol:** sequence numbers and watermarks, because `call()` delivers exactly once.
-- **Documented difference from iOS:** a signal to a dead host cold-starts it and is handled. On iOS it is lost.
+- **Documented difference from iOS:** a signal to a dead host cold-starts it and is handled, even when the host was force-stopped (S6). On iOS it is lost.
+
+### Spike S6 findings (Pixel_7 emulator, Android 16 / API 36, 2026-10-10)
+Measured with throwaway host and companion apps, driven by `adb`. Package-visibility filtering (`FILTER_APPLICATION_QUERY`) and the cached-apps freezer (`use_freezer=true`, 10 s debounce) were both active. Only API 36 was measured; behaviour below API 30 (no visibility filtering) and on older freezers may differ.
+
+| Case | Result |
+|---|---|
+| Same debug key, host then companion | Permission granted. `call`, `openFile` and a cross-app `ContentObserver` all work, with one `onChange` per prefs commit. |
+| Companion installed **before** the host | Still granted once the host is installed. No install-order constraint. |
+| Different key, `protectionLevel="signature"` | Denied. The host's package and certificate are still visible, so `PermissionDenied` can show both SHA-256s. `acquire…` throws `SecurityException`. |
+| Different key, `signature\|knownSigner` listing its SHA-256 | Granted, and everything works. |
+| No `<queries>`, but `<uses-permission>` | The host is visible, with either key. The unrelated control app stays invisible, so filtering is on. |
+| No `<queries>` and no `<uses-permission>` | The host is invisible: `getPackageInfo` gives `NameNotFoundException`, and `acquire…` returns `null`. |
+| Cold start (force-stopped, `am kill`ed or never started) | The call starts the host. `provider.onCreate` runs first; the call arrives during `Application.onCreate` (`appReady=false`). With the barrier, it answers after `onCreate` ends (about 1.5 s of simulated work). |
+| Cached host (oom_adj 900, 20 s past the freeze debounce) | Answers in about 3 ms. Acquiring the provider raises the host's priority. |
+| Host force-stopped under a held unstable client | The next call throws `DeadObjectException`. The companion survives, and a fresh `acquire` cold-starts the host and works. |
+| Delayed send, companion is the previous app (oom_adj 700) | Not frozen: sends after 10, 30 and 60 s fired on time and were handled. |
+| Delayed send, companion pushed to cached (companion → host → Settings) | **Frozen.** A 40 s delayed send fired only at 64.7 s, when the companion was brought back to the foreground. |
 
 ### Companion UI (M3)
 ```kotlin
@@ -173,7 +192,7 @@ FlagCompanion(hostPackage = "com.example.app", tabs = listOf(
   - Row editors per editor kind: toggle, picker, date+time, integer/decimal/url/text fields that commit on Done or blur, data/json block, list editor, records list and record screen with unique keys.
   - Detail: radio list for enums.
   - Signals: delay picker (0/3/5/10 s), countdown ring, tap to cancel, last 5 results.
-- **Delayed-signal countdown notification:** the stand-in for the Dynamic Island. It uses a ProgressStyle Live Update on API 36+ and a chronometer notification below that. It is the **last M3 task and can be cut**. A short foreground service is added only if spike S1 shows a backgrounded companion gets frozen.
+- **Delayed-signal countdown notification:** the stand-in for the Dynamic Island. It uses a ProgressStyle Live Update on API 36+ and a chronometer notification below that. It is the **last M3 task and can be cut**. S6 showed that a companion pushed into the cached band is frozen and its delayed send stalls. While it is only the previous app (the usual case of switching straight to the host), it is not frozen. M3 decides between a short foreground service and handing the delay to the host.
 
 ### Not ported / deliberate deviations
 | iOS | Android |
@@ -212,7 +231,7 @@ FlagCompanion(hostPackage = "com.example.app", tabs = listOf(
 - [ ] S3 (KSP): kctfork + KSP 2.2.10-2.0.2; `isAbstract()` on interface getters; `super<I>.p`; cross-module `XSpec` lookup; AGP 9 + KSP (`android.disallowKotlinSourceSets=false`) → verify: throwaway 2-module build
 - [ ] S4 (QR): Kotlin decodes Apple codes; Swift decodes Kotlin codes → verify: both directions pass
 - [ ] S5 (records): prototype-instance defaults, including an `init { require }` failure → verify: the shape carries the defaults
-- [ ] S6 (Pixel_7, API 36): signature permission with a shared debug key; install order; no `<queries>` gives null; cross-app ContentObserver; `call()` into a killed, force-stopped or cached host plus the startup barrier; `DeadObjectException` survival; a 10 s delayed send from the background → verify: findings recorded
+- [x] S6 (Pixel_7, API 36; results in "Spike S6 findings"): signature permission with a shared debug key; install order; no `<queries>` gives null; cross-app ContentObserver; `call()` into a killed, force-stopped or cached host plus the startup barrier; `DeadObjectException` survival; a 10 s delayed send from the background → verify: findings recorded
 
 **M1: core + KSP + test support** (TDD, in this order)
 - [ ] Scaffold: wrapper, version catalog, build-logic, 3 modules, detekt → verify: `./gradlew build detekt`
