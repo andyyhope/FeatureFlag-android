@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.Flow
  * host's overrides change, which the host announces through a `ContentObserver` registered with
  * the system, so it keeps working when the host process dies and starts again. Writes are
  * blocking calls into the host: make them off the main thread. Close the source when done.
+ *
+ * Creating one throws [FlagBridgeException.Unavailable] when the host's provider cannot be found
+ * or the companion may not observe it.
  */
 public class FlagBridgeSource internal constructor(
     private val client: FlagBridgeClient,
@@ -48,11 +51,22 @@ public class FlagBridgeSource internal constructor(
     }
 
     init {
-        client.resolver.registerContentObserver(FlagBridgeContract.overridesUri(client.hostPackage), false, observer)
+        start()
+    }
+
+    // Rethrown after cleanup: whatever fails the constructor must not leave the thread running.
+    @Suppress("TooGenericExceptionCaught")
+    private fun start() {
         try {
-            refresh()
-        } catch (ignored: FlagBridgeException) {
-            // Start empty; the companion shows the defaults until the host answers.
+            register()
+            try {
+                refresh()
+            } catch (ignored: FlagBridgeException) {
+                // Start empty; the companion shows the defaults until the host answers.
+            }
+        } catch (error: RuntimeException) {
+            abandon()
+            throw error
         }
     }
 
@@ -100,6 +114,21 @@ public class FlagBridgeSource internal constructor(
             (values != cache).also { cache = values }
         }
         if (changed) emitter.emit(FlagChange.All)
+    }
+
+    /** The system refuses to observe a provider it cannot resolve or the companion may not use. */
+    private fun register() {
+        try {
+            client.resolver.registerContentObserver(FlagBridgeContract.overridesUri(client.hostPackage), false, observer)
+        } catch (error: SecurityException) {
+            throw FlagBridgeException.Unavailable(error)
+        }
+    }
+
+    /** A constructor that fails must not leave its thread or observer behind. */
+    private fun abandon() {
+        client.resolver.unregisterContentObserver(observer)
+        thread.quitSafely()
     }
 
     /** Unregisters the ContentObserver and stops its thread. */

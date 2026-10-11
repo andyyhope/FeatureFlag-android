@@ -77,6 +77,8 @@ public class FlagBridgeClient(
     /**
      * A live view of the host's companion overrides, validated against [schema]. Close it when done.
      * Blocking: it reads the overrides once before returning, so call it off the main thread.
+     * Throws [FlagBridgeException.Unavailable] when the host's provider cannot be found or the
+     * companion may not observe it. A first read that fails leaves the source empty instead.
      */
     public fun source(schema: FlagSchema, name: String = "Companion"): FlagBridgeSource =
         FlagBridgeSource(this, schema, name)

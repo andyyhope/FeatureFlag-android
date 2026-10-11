@@ -1,6 +1,9 @@
 package com.andyyhope.featureflag.android.bridge
 
 import android.app.Application
+import android.content.ContentResolver
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.DeadObjectException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,6 +23,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowContentResolver
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -282,6 +288,17 @@ class FlagBridgeSourceTest {
         assertFailsWith<FlagBridgeException.Unavailable> { source.setBox(enabled, FlagValueBox.Bool(true)) }
     }
 
+    @Test
+    @Config(shadows = [UnobservableContentResolver::class])
+    fun aSourceThatCannotObserveTheHostIsUnavailableAndLeaksNoThread() {
+        val error = assertFailsWith<FlagBridgeException.Unavailable> { FlagBridgeClient(context, host).source(schema) }
+
+        assertIs<SecurityException>(error.cause)
+        val deadline = System.nanoTime() + THREAD_EXIT_NANOS
+        while (flagBridgeThreads().isNotEmpty() && System.nanoTime() < deadline) Thread.sleep(10)
+        assertTrue(flagBridgeThreads().isEmpty())
+    }
+
     // Observing
 
     @Test
@@ -315,6 +332,17 @@ class FlagBridgeSourceTest {
     private fun source(name: String = "Companion"): FlagBridgeSource =
         FlagBridgeClient(context, host).source(schema, name).also(opened::add)
 
+    private fun flagBridgeThreads() =
+        Thread.getAllStackTraces().keys.filter { it.name == "FlagBridgeSource" && it.isAlive }
+
+    /** The framework's answer when the provider cannot be resolved for the caller. */
+    @Implements(ContentResolver::class)
+    class UnobservableContentResolver : ShadowContentResolver() {
+        @Implementation
+        override fun registerContentObserver(uri: Uri, notifyForDescendents: Boolean, observer: ContentObserver) =
+            throw SecurityException("Failed to find provider for ${uri.authority}")
+    }
+
     private fun entry(
         key: FlagKey,
         type: FlagValueType,
@@ -332,5 +360,6 @@ class FlagBridgeSourceTest {
     private companion object {
         /** Long enough for the observer thread to have refreshed, had it been told to. */
         const val OBSERVER_SETTLE_MILLIS = 300L
+        const val THREAD_EXIT_NANOS = 2_000_000_000L
     }
 }
