@@ -27,6 +27,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.net.URI
 import java.time.Instant
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -242,6 +244,29 @@ class SharedPreferencesSourceTest {
         assertTrue(preferences.all.isEmpty())
     }
 
+    @Test
+    fun aNonFiniteFloatIsRefusedAndNothingIsWritten() {
+        val source = makeSource()
+
+        for (bad in listOf(Float.NaN, Float.POSITIVE_INFINITY)) {
+            val error = assertFailsWith<FlagException.UnsupportedValue> {
+                source.setBoxes(mapOf(FlagKey("fine") to FlagValueBox.Bool(true), FlagKey("bad") to FlagValueBox.Float(bad)))
+            }
+
+            assertEquals(FlagKey("bad"), error.key)
+            assertTrue(preferences.all.isEmpty())
+        }
+    }
+
+    @Test
+    fun aNanStoredBySomeoneElseStillReadsBack() {
+        preferences.edit().putFloat("nan", Float.NaN).commit()
+
+        val box = makeSource().box(FlagKey("nan"), FlagValueType.Float)
+
+        assertTrue((box as FlagValueBox.Float).value.isNaN())
+    }
+
     // Change notification
 
     @Test
@@ -252,6 +277,23 @@ class SharedPreferencesSourceTest {
             source.setBox(FlagKey("flag.bool"), FlagValueBox.Bool(true))
             idleMainLooper()
             assertEquals(FlagChange.Keys(setOf(FlagKey("flag.bool"))), awaitItem())
+        }
+    }
+
+    @Test
+    fun aWriteFromABackgroundThreadIsAnnouncedOnceTheMainLooperRuns() = runBlocking<Unit> {
+        // The provider writes on a binder thread; the framework posts the listener callback to the main looper.
+        val source = makeSource()
+        val background = Executors.newSingleThreadExecutor()
+
+        try {
+            source.changes.test {
+                background.submit { source.setBox(FlagKey("flag.bool"), FlagValueBox.Bool(true)) }.get(5, TimeUnit.SECONDS)
+                idleMainLooper()
+                assertEquals(FlagChange.Keys(setOf(FlagKey("flag.bool"))), awaitItem())
+            }
+        } finally {
+            background.shutdownNow()
         }
     }
 

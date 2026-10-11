@@ -48,6 +48,10 @@ public class FlagSignalChannel internal constructor(private val mainThread: Exec
      * Returns true when at least one handler ran to completion. Called by FlagBridgeProvider;
      * safe from any thread. When called on the main thread it runs the handlers inline (no
      * deadlock). A delivery that times out is withdrawn, so its handlers do not run later.
+     *
+     * An `Exception` from a handler is logged and counts as not handled; later observers still run.
+     * An `Error` stops the delivery: later observers do not run, and off the main thread it is
+     * logged and this returns false.
      */
     public fun deliver(name: String, timeout: Duration = DELIVERY_TIMEOUT): Boolean {
         val matching = observers.filter { it.handles(name) }

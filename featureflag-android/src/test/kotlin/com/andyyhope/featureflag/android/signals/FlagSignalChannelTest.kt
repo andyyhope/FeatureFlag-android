@@ -10,6 +10,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -313,20 +314,28 @@ class FlagSignalChannelTest {
     @Test
     fun aTimedOutDeliveryDoesNotRunObserversThatHaveNotStarted() {
         val channel = FlagSignalChannel(mainThread)
-        var firstRan = false
+        val firstStarted = CountDownLatch(1)
+        val deliveryReturned = CountDownLatch(1)
         var secondRan = false
+        // The first handler holds the main thread until the delivery has timed out and returned.
         channel.observe(TestSignal.entries) {
-            firstRan = true
-            Thread.sleep(500)
+            firstStarted.countDown()
+            deliveryReturned.await(5, TimeUnit.SECONDS)
         }
         channel.observe(TestSignal.entries) { secondRan = true }
 
         val handled = idleMainLooperUntilDone(
-            background.submit<Boolean> { channel.deliver(TestSignal.Refetch.name, 100.milliseconds) },
+            background.submit<Boolean> {
+                try {
+                    channel.deliver(TestSignal.Refetch.name, 250.milliseconds)
+                } finally {
+                    deliveryReturned.countDown()
+                }
+            },
         )
 
         assertFalse(handled)
-        assertTrue(firstRan, "the first handler was already running when the delivery timed out")
+        assertEquals(0, firstStarted.count, "the first handler was already running when the delivery timed out")
         assertFalse(secondRan, "a delivery that timed out must not start further handlers")
     }
 

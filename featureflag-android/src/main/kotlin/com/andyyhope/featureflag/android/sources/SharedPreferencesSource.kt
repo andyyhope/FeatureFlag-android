@@ -81,8 +81,9 @@ public class SharedPreferencesSource(
      * them and the write is on disk when this returns. Changes that leave a key as it is are
      * left out; when none is left, the file is not touched at all.
      *
-     * @throws FlagException.UnsupportedValue for a double holding an infinity or a NaN, which
-     *   JSON text cannot represent. Nothing is written.
+     * @throws FlagException.UnsupportedValue for a float or double holding an infinity or a NaN
+     *   (also inside a collection). Nothing is written. A NaN already stored by someone else
+     *   with `putFloat` still reads back as a float.
      */
     override fun setBoxes(changes: Map<FlagKey, FlagValueBox?>) {
         // Encode everything first, so a value that cannot be stored fails before any write.
@@ -136,7 +137,7 @@ public class SharedPreferencesSource(
     private fun storedForm(key: FlagKey, box: FlagValueBox): Any = when (box) {
         is FlagValueBox.Bool -> box.value
         is FlagValueBox.Int -> box.value
-        is FlagValueBox.Float -> box.value
+        is FlagValueBox.Float -> if (box.value.isFinite()) box.value else throw FlagException.UnsupportedValue(key)
         is FlagValueBox.String -> box.value
         else -> try {
             FlagValueJson.encode(box)
