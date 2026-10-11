@@ -75,6 +75,13 @@ public class FlagBridgeClient(
     } ?: false
 
     /**
+     * A live view of the host's companion overrides, validated against [schema]. Close it when done.
+     * Blocking: it reads the overrides once before returning, so call it off the main thread.
+     */
+    public fun source(schema: FlagSchema, name: String = "Companion"): FlagBridgeSource =
+        FlagBridgeSource(this, schema, name)
+
+    /**
      * Runs [operation] on a fresh unstable client for the host's provider and closes it. A
      * [DeadObjectException] means the host died mid-call; it is retried once with a new client,
      * which starts the host again. Returns null when the host has no provider. Blocking.
