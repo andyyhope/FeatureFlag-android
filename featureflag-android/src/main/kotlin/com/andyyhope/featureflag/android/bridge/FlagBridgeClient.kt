@@ -14,12 +14,14 @@ import android.os.RemoteException
 import com.andyyhope.featureflag.errors.FlagSchemaException
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.signals.FlagSignal
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.FileNotFoundException
+import java.io.IOException
 import java.security.MessageDigest
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -58,14 +60,16 @@ public class FlagBridgeClient(
         return within(timeout) { handshake() } ?: FlagBridgeConnection.Unresponsive(hostPackage, timeout)
     }
 
-    /** True when the host ran a handler for [signal]; false on no observer, timeout, or an unreachable host. Never throws. */
+    /** True when the host ran a handler for [signal]; false on no observer, timeout, or an unreachable host. Never throws.
+     * A send that timed out or was cancelled may still be delivered, and a host that dies after running
+     * the handler may run it again on the retry. */
     public suspend fun send(signal: FlagSignal, timeout: Duration = this.timeout): Boolean = within(timeout) {
         try {
             perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, null) }
                 ?.getBoolean(FlagBridgeContract.KEY_HANDLED) ?: false
-        } catch (ignored: RemoteException) {
-            false
-        } catch (ignored: SecurityException) {
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (ignored: Exception) {
             false
         }
     } ?: false
@@ -98,6 +102,7 @@ public class FlagBridgeClient(
         return withTimeoutOrNull(timeout) { result.await() }
     }
 
+    @Suppress("TooGenericExceptionCaught") // Whatever the host throws over binder must become a status.
     private fun handshake(): FlagBridgeConnection = try {
         perform { client ->
             val protocol = client.call(FlagBridgeContract.METHOD_HELLO, null, null)?.getInt(FlagBridgeContract.KEY_PROTOCOL)
@@ -115,6 +120,13 @@ public class FlagBridgeClient(
     } catch (ignored: RemoteException) {
         // The host died twice in a row: as far as the companion can tell, it is not answering.
         FlagBridgeConnection.Unresponsive(hostPackage, timeout)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: RuntimeException) {
+        FlagBridgeConnection.Incompatible(
+            "'$hostPackage' failed while answering the bridge: ${error.message ?: error.javaClass.simpleName}. " +
+                "Update whichever app is older, then try again.",
+        )
     }
 
     private fun schema(client: ContentProviderClient): FlagBridgeConnection = try {
@@ -124,6 +136,8 @@ public class FlagBridgeClient(
         FlagBridgeConnection.Connected(FlagSchema.parse(bytes))
     } catch (ignored: FileNotFoundException) {
         FlagBridgeConnection.NotPublished
+    } catch (ignored: IOException) {
+        FlagBridgeConnection.Unresponsive(hostPackage, timeout)
     } catch (error: FlagSchemaException) {
         FlagBridgeConnection.Incompatible(error.message.orEmpty())
     }

@@ -231,6 +231,31 @@ class FlagBridgeClientTest {
     }
 
     @Test
+    fun aHostThatFailsWhileAnsweringIsIncompatible() = runBlocking<Unit> {
+        installBridge().failure = IllegalStateException("boom")
+
+        assertEquals(
+            FlagBridgeConnection.Incompatible(
+                "'com.example.host' failed while answering the bridge: boom. Update whichever app is older, then try again.",
+            ),
+            FlagBridgeClient(context, host).connect(),
+        )
+    }
+
+    @Test
+    fun aFailureWithoutAMessageNamesItsClass() = runBlocking<Unit> {
+        installBridge().failure = UnsupportedOperationException()
+
+        assertEquals(
+            FlagBridgeConnection.Incompatible(
+                "'com.example.host' failed while answering the bridge: UnsupportedOperationException. " +
+                    "Update whichever app is older, then try again.",
+            ),
+            FlagBridgeClient(context, host).connect(),
+        )
+    }
+
+    @Test
     fun onlyConnectedHasNoMessage() {
         assertEquals(null, FlagBridgeConnection.Connected(schema).message)
     }
@@ -275,6 +300,13 @@ class FlagBridgeClientTest {
     @Test
     fun aSignalTheProviderRefusesIsFalse() = runBlocking<Unit> {
         installBridge().refusal = SecurityException("Permission Denial")
+
+        assertFalse(FlagBridgeClient(context, host).send(TestSignal.Purge))
+    }
+
+    @Test
+    fun aSignalTheHostFailsOnIsFalse() = runBlocking<Unit> {
+        installBridge().failure = IllegalArgumentException("Unknown bridge method 'signal'.")
 
         assertFalse(FlagBridgeClient(context, host).send(TestSignal.Purge))
     }

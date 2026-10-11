@@ -55,6 +55,9 @@ class FakeBridgeProvider : ContentProvider() {
     /** When set, calls throw it, as the provider's own permission check does. */
     var refusal: SecurityException? = null
 
+    /** When set, calls throw it, as a host bridge that fails inside its own handler does. */
+    var failure: RuntimeException? = null
+
     /** When set, calls wait for it first, as a host stuck starting up does. */
     var stall: CountDownLatch? = null
 
@@ -67,6 +70,7 @@ class FakeBridgeProvider : ContentProvider() {
         calls.add(if (arg == null) method else "$method $arg")
         stall?.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
         refusal?.let { throw it }
+        failure?.let { throw it }
         if (deaths.getAndUpdate { if (it > 0) it - 1 else 0 } > 0) throw DeadObjectException()
         forcedStatus?.let { status ->
             return status(status).apply {
