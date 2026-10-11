@@ -1,0 +1,202 @@
+package com.andyyhope.featureflag.bridge
+
+import android.content.ContentProvider
+import android.content.ContentValues
+import android.content.Context
+import android.content.SharedPreferences
+import android.database.Cursor
+import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelFileDescriptor
+import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
+import com.andyyhope.featureflag.android.signals.FlagSignalChannel
+import com.andyyhope.featureflag.android.sources.SharedPreferencesSource
+import com.andyyhope.featureflag.errors.FlagException
+import com.andyyhope.featureflag.errors.FlagImportException
+import com.andyyhope.featureflag.errors.FlagSchemaException
+import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.transport.FlagPayload
+import com.andyyhope.featureflag.values.FlagKey
+import com.andyyhope.featureflag.values.FlagValueBox
+import java.io.File
+import java.io.FileNotFoundException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * Lets a companion app signed with the host's key read the host's schema, read and write its
+ * companion overrides, observe them, and send it signals.
+ *
+ * Merged into the host by depending on `featureflag-bridge`. It needs no registration: it serves
+ * the schema `publishSchema(context)` writes, the overrides in the file
+ * [SharedPreferencesSource.companion] reads, and the signals [FlagSignalChannel.host] delivers.
+ */
+public class FlagBridgeProvider : ContentProvider() {
+
+    private lateinit var source: SharedPreferencesSource
+    private lateinit var preferences: SharedPreferences
+    private lateinit var overridesUri: Uri
+
+    // Strongly held: SharedPreferences keeps its listeners weakly.
+    private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        context?.contentResolver?.notifyChange(overridesUri, null)
+    }
+
+    @Volatile
+    private var started = false
+
+    /** How long the first answer waits for the main looper. Tests shorten it. */
+    internal var startupTimeout: Duration = STARTUP_TIMEOUT
+
+    override fun onCreate(): Boolean {
+        val context = checkNotNull(context)
+        source = SharedPreferencesSource.companion(context)
+        preferences = context.getSharedPreferences(FlagBridgeContract.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        overridesUri = FlagBridgeContract.overridesUri(context.packageName)
+        return true
+    }
+
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
+        val context = checkNotNull(context)
+        // The manifest permission already keeps other apps from opening the provider; this is defence in depth.
+        context.enforceCallingPermission(
+            FlagBridgeContract.permission(context.packageName),
+            "Only apps signed with the host's key may use the FeatureFlag bridge",
+        )
+        awaitStartup()
+        return when (method) {
+            FlagBridgeContract.METHOD_HELLO -> Bundle().apply {
+                putInt(FlagBridgeContract.KEY_PROTOCOL, FlagBridgeContract.PROTOCOL)
+            }
+            FlagBridgeContract.METHOD_OVERRIDES -> overrides(context)
+            FlagBridgeContract.METHOD_APPLY -> apply(context, extras)
+            FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
+                putBoolean(FlagBridgeContract.KEY_HANDLED, FlagSignalChannel.host.deliver(arg.orEmpty()))
+            }
+            else -> throw IllegalArgumentException("Unknown bridge method '$method'.")
+        }
+    }
+
+    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+        awaitStartup()
+        val context = checkNotNull(context)
+        if (uri.path != SCHEMA_PATH) throw FileNotFoundException("The bridge serves no file at $uri.")
+        val file = File(FlagBridgeContract.schemaDirectory(context), FlagSchema.FILE_NAME)
+        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    }
+
+    override fun query(
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?,
+    ): Cursor? = null
+
+    override fun getType(uri: Uri): String? = null
+
+    override fun insert(uri: Uri, values: ContentValues?): Uri? = null
+
+    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
+
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
+
+    /**
+     * A cold-started host can receive its first call on a binder thread while `Application.onCreate`
+     * is still running (S6). Once the main looper has run one task posted from here, `onCreate` has
+     * returned, so the schema is published and every signal observer is registered.
+     */
+    private fun awaitStartup() {
+        if (started) return
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            val ran = CountDownLatch(1)
+            Handler(Looper.getMainLooper()).post { ran.countDown() }
+            ran.await(startupTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+        }
+        started = true
+    }
+
+    private fun overrides(context: Context): Bundle {
+        val schema = schema(context) ?: return status(FlagBridgeContract.STATUS_NOT_PUBLISHED)
+        val bytes = FlagPayload(acceptedOverrides(schema)).jsonBytes()
+        if (bytes.size > FlagBridgeContract.MAX_PAYLOAD_BYTES) {
+            return status(FlagBridgeContract.STATUS_TOO_LARGE).apply { putInt(FlagBridgeContract.KEY_SIZE, bytes.size) }
+        }
+        return status(FlagBridgeContract.STATUS_OK).apply { putByteArray(FlagBridgeContract.KEY_PAYLOAD, bytes) }
+    }
+
+    /**
+     * Every stored override the schema accepts. The file belongs to the host, so its own code may
+     * have left a value a strict import would reject; that value is left out rather than failing the
+     * whole document. One pass drops every rejected key, so the second always decodes.
+     */
+    private fun acceptedOverrides(schema: FlagSchema): Map<FlagKey, FlagValueBox> {
+        var values = schema.valueTypes.mapNotNull { (key, type) ->
+            source.box(key, type)?.takeUnless { it.containsNonFiniteNumber }?.let { key to it }
+        }.toMap()
+        repeat(DECODE_ATTEMPTS) {
+            val problems = try {
+                FlagPayload.decode(FlagPayload(values).jsonBytes(), schema)
+                return values
+            } catch (rejected: FlagImportException.Rejected) {
+                rejected.problems
+            }
+            values = values - problems.map { it.key }.toSet()
+        }
+        return values
+    }
+
+    private fun apply(context: Context, extras: Bundle?): Bundle {
+        val schema = schema(context) ?: return status(FlagBridgeContract.STATUS_NOT_PUBLISHED)
+        val payload = try {
+            extras?.getByteArray(FlagBridgeContract.KEY_PAYLOAD)?.let { FlagPayload.decode(it, schema) }
+        } catch (error: FlagImportException) {
+            return rejected(error.message.orEmpty())
+        }
+        val removals = extras?.getStringArray(FlagBridgeContract.KEY_REMOVE).orEmpty().map(::FlagKey)
+        val unknown = removals.filter { it !in schema.valueTypes }
+        if (unknown.isNotEmpty()) return rejected(unknownRemovalMessage(unknown))
+
+        val changes = LinkedHashMap<FlagKey, FlagValueBox?>()
+        payload?.values?.let(changes::putAll)
+        removals.forEach { changes[it] = null }
+        try {
+            source.setBoxes(changes)
+        } catch (error: FlagException.UnsupportedValue) {
+            // Strict import reads -1e400 as an infinity, which the store cannot hold. Nothing was written.
+            return rejected(error.message.orEmpty())
+        }
+        return status(FlagBridgeContract.STATUS_OK)
+    }
+
+    private fun schema(context: Context): FlagSchema? = try {
+        FlagSchema.read(FlagBridgeContract.schemaDirectory(context))
+    } catch (ignored: FlagSchemaException) {
+        // Missing, or unreadable: either way there is nothing to check overrides against.
+        null
+    }
+
+    private fun status(status: String) = Bundle().apply { putString(FlagBridgeContract.KEY_STATUS, status) }
+
+    private fun rejected(message: String) = status(FlagBridgeContract.STATUS_REJECTED).apply {
+        putString(FlagBridgeContract.KEY_MESSAGE, message)
+    }
+
+    private fun unknownRemovalMessage(keys: List<FlagKey>): String {
+        val names = keys.map { "'${it.rawValue}'" }
+        val listed = if (names.size == 1) names.single() else names.dropLast(1).joinToString(", ") + " or " + names.last()
+        val them = if (names.size == 1) "it" else "them"
+        return "The host's schema has no flag $listed, so it cannot remove $them. Reconnect to load the current schema."
+    }
+
+    private companion object {
+        val STARTUP_TIMEOUT = 10.seconds
+        const val SCHEMA_PATH = "/schema"
+        const val DECODE_ATTEMPTS = 2
+    }
+}

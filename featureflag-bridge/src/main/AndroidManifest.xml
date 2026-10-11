@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Only apps signed with the host's key may hold this, so only they can open the provider below. -->
+    <permission
+        android:name="${applicationId}.permission.FEATURE_FLAG_BRIDGE"
+        android:protectionLevel="signature" />
+
+    <application>
+        <provider
+            android:name="com.andyyhope.featureflag.bridge.FlagBridgeProvider"
+            android:authorities="${applicationId}.featureflag"
+            android:exported="true"
+            android:permission="${applicationId}.permission.FEATURE_FLAG_BRIDGE" />
+    </application>
+</manifest>
