@@ -16,6 +16,7 @@ import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagStringEnum
 import com.andyyhope.featureflag.values.FlagValueBox
 import org.junit.Test
+import java.lang.management.ManagementFactory
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -38,6 +39,17 @@ class FlagQRCodeTest {
     private fun goldenPole(): FlagPole<GoldenFlags> = FlagPole(GoldenFlagsSpec, listOf(SnapshotSource("local")))
 
     private fun code(bytes: ByteArray): String = FlagQRCode.PREFIX + FlagQRCode.base64UrlEncode(bytes)
+
+    private fun lengthPrefix(length: Int): ByteArray =
+        byteArrayOf((length ushr 24).toByte(), (length ushr 16).toByte(), (length ushr 8).toByte(), length.toByte())
+
+    /** Bytes the current thread allocated while [block] ran, as HotSpot counts them. */
+    private fun bytesAllocatedBy(block: () -> Unit): Long {
+        val threads = ManagementFactory.getThreadMXBean() as com.sun.management.ThreadMXBean
+        val before = threads.currentThreadAllocatedBytes
+        block()
+        return threads.currentThreadAllocatedBytes - before
+    }
 
     // Wire format
 
@@ -192,6 +204,38 @@ class FlagQRCodeTest {
         // 50,000,001 bytes: one past the cap.
         val overCap = byteArrayOf(0x02, 0xFA.toByte(), 0xF0.toByte(), 0x81.toByte(), 0)
         assertFailsWith<FlagQRCodeException.Corrupt> { FlagQRCode.decode(code(overCap), goldenSchema) }
+    }
+
+    @Test
+    fun aDeflateBombIsRefusedBeforeItsOutputIsAllocated() {
+        // A garbled scan claiming 40 MB from a 1 KB body: no deflate stream expands that far,
+        // so the claim is refused before a 40 MB buffer is ever allocated.
+        val body = FlagQRCode.compress(ByteArray(1_000_000)).let { it.copyOfRange(4, it.size) }
+        val bomb = lengthPrefix(40_000_000) + body
+
+        val allocated = bytesAllocatedBy { assertNull(FlagQRCode.decompress(bomb)) }
+
+        assertTrue(allocated < 4_000_000, "allocated $allocated bytes for an implausible claim")
+    }
+
+    @Test
+    fun aClaimDeflateCouldReachIsStillInflated() {
+        // A million zero bytes deflate to under 1 KB, close to deflate's 1032:1 ceiling.
+        val compressed = FlagQRCode.compress(ByteArray(1_000_000))
+
+        assertTrue(compressed.size < 1_100, "zeros should deflate near the ceiling, got ${compressed.size}")
+        assertContentEquals(ByteArray(1_000_000), FlagQRCode.decompress(compressed))
+    }
+
+    @Test
+    fun aCodeClaimingExactlyTheCapStillDecodes() {
+        // 50,000,000 zero bytes deflate to about 48.6 KB, within the plausibility bound.
+        val compressed = FlagQRCode.compress(ByteArray(50_000_000))
+        val body = compressed.copyOfRange(4, compressed.size)
+
+        assertEquals(50_000_000, FlagQRCode.decompress(compressed)?.size)
+        // One byte past the cap is refused, however plausible the body.
+        assertNull(FlagQRCode.decompress(lengthPrefix(50_000_001) + body))
     }
 
     @Test

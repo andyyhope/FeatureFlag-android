@@ -32,6 +32,11 @@ public object FlagQRCode {
     private const val LENGTH_BYTES = 4
     private const val MAX_DECLARED_LENGTH = 50_000_000L
 
+    // DEFLATE's ceiling: a 258-byte match coded in two bits expands at most 1032 to 1. The
+    // slack covers the few bytes of block header a tiny stream spends before any match.
+    private const val MAX_DEFLATE_RATIO = 1032L
+    private const val MAX_DEFLATE_SLACK = 64L
+
     /**
      * Compresses and encodes a payload.
      *
@@ -76,8 +81,11 @@ public object FlagQRCode {
         val expected = (0 until LENGTH_BYTES).fold(0L) { length, index -> (length shl 8) or (data[index].toLong() and 0xFF) }
         val body = data.copyOfRange(LENGTH_BYTES, data.size)
         if (expected == 0L) return if (body.isEmpty()) ByteArray(0) else null
-        // A corrupt length must not turn into an implausible allocation.
+        // A corrupt length must not turn into an implausible allocation: refuse a claim above
+        // the cap, or beyond what deflate could expand this body to. A stored body claims its
+        // own length, so it always passes.
         if (expected > MAX_DECLARED_LENGTH) return null
+        if (expected > body.size.toLong() * MAX_DEFLATE_RATIO + MAX_DEFLATE_SLACK) return null
         val output = ByteArray(expected.toInt())
         return when {
             inflate(body, output) == output.size -> output
