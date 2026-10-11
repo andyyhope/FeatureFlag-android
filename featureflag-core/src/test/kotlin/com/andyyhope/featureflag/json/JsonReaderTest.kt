@@ -86,4 +86,30 @@ class JsonReaderTest {
         val text = (parse("""["\/\b\f\n\r\t\"\\Aé😀"]""") as JsonValue.Array).items.single()
         assertEquals(JsonValue.Text("/\b\u000C\n\r\t\"\\Aé😀"), text)
     }
+
+    // Fragments
+
+    @Test
+    fun aFragmentMayBeAnyValue() {
+        assertEquals(JsonValue.Integer(3), JsonReader.parseFragment("3"))
+        assertEquals(JsonValue.Real(0.5), JsonReader.parseFragment(" 0.5\n"))
+        assertEquals(JsonValue.Text("x"), JsonReader.parseFragment("\"x\""))
+        assertEquals(JsonValue.Bool(true), JsonReader.parseFragment("true"))
+        assertEquals(JsonValue.Null, JsonReader.parseFragment("null"))
+        assertEquals(JsonValue.Array(listOf(JsonValue.Integer(1))), JsonReader.parseFragment("[1,]"))
+    }
+
+    @Test
+    fun aFragmentFollowsTheSameGrammar() {
+        for (text in listOf("", "  ", "tru", "1 2", "\"a", "01", "1e400", "[1", "{\"a\":1}x")) {
+            assertFailsWith<JsonSyntaxException>("parsing <$text>") { JsonReader.parseFragment(text) }
+        }
+    }
+
+    @Test
+    fun aDocumentStillRejectsAScalarAtTheTop() {
+        // JSONSerialization without .fragmentsAllowed, which import and the schema rely on.
+        assertFailsWith<JsonSyntaxException> { parse("3") }
+        assertFailsWith<JsonSyntaxException> { parse("\"x\"") }
+    }
 }

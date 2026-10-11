@@ -27,17 +27,26 @@ internal object JsonReader {
         return Parser(text.removePrefix(BYTE_ORDER_MARK.toString())).document()
     }
 
+    /**
+     * Reads one JSON value of any kind, as `JSONSerialization` does with `.fragmentsAllowed`.
+     * The grammar is the same as [parse]'s; only the root may also be a scalar. [text] is
+     * already a string, so there is no byte order mark to skip.
+     */
+    fun parseFragment(text: String): JsonValue = Parser(text).fragment()
+
     private class Parser(private val text: String) {
         private var index = 0
         private var depth = 0
 
         fun document(): JsonValue {
             skipWhitespace()
-            val value = when (peek()) {
-                '[' -> array()
-                '{' -> obj()
-                else -> fail("The top level must be an array or an object")
-            }
+            if (peek() != '[' && peek() != '{') fail("The top level must be an array or an object")
+            return fragment()
+        }
+
+        fun fragment(): JsonValue {
+            skipWhitespace()
+            val value = value()
             skipWhitespace()
             if (index != text.length) fail("Unexpected text after the document")
             return value
