@@ -5,10 +5,12 @@ import android.os.Looper
 import android.util.Log
 import com.andyyhope.featureflag.signals.FlagSignal
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executor
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -50,15 +52,21 @@ public class FlagSignalChannel internal constructor(private val mainThread: Exec
     public fun deliver(name: String, timeout: Duration = DELIVERY_TIMEOUT): Boolean {
         val matching = observers.filter { it.handles(name) }
         if (matching.isEmpty()) return false
-        // Every matching handler runs, even after one has already succeeded.
-        val run = { matching.count { it.run(name) } > 0 }
+        val withdrawn = AtomicBoolean(false)
+        // Every matching handler runs, even after one has already succeeded, unless the delivery
+        // timed out: then only a handler already running finishes.
+        val run = { matching.count { !withdrawn.get() && it.run(name) } > 0 }
         if (mainThread == null || Looper.getMainLooper().isCurrentThread) return run()
         val task = FutureTask(run)
         mainThread.execute(task)
         return try {
             task.get(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         } catch (ignored: TimeoutException) {
+            withdrawn.set(true)
             task.cancel(false)
+            false
+        } catch (e: ExecutionException) {
+            Log.w(TAG, "The handler for the signal '$name' failed, so it was not handled.", e.cause)
             false
         }
     }

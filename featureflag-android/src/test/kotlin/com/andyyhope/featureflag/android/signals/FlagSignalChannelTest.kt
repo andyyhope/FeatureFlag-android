@@ -311,6 +311,36 @@ class FlagSignalChannelTest {
     }
 
     @Test
+    fun aTimedOutDeliveryDoesNotRunObserversThatHaveNotStarted() {
+        val channel = FlagSignalChannel(mainThread)
+        var firstRan = false
+        var secondRan = false
+        channel.observe(TestSignal.entries) {
+            firstRan = true
+            Thread.sleep(500)
+        }
+        channel.observe(TestSignal.entries) { secondRan = true }
+
+        val handled = idleMainLooperUntilDone(
+            background.submit<Boolean> { channel.deliver(TestSignal.Refetch.name, 100.milliseconds) },
+        )
+
+        assertFalse(handled)
+        assertTrue(firstRan, "the first handler was already running when the delivery timed out")
+        assertFalse(secondRan, "a delivery that timed out must not start further handlers")
+    }
+
+    @Test
+    fun aHandlerThrowingAnErrorOffTheMainThreadIsNotHandledAndDoesNotEscape() {
+        val channel = FlagSignalChannel(mainThread)
+        channel.observe(TestSignal.entries) { throw AssertionError("not implemented") }
+
+        val handled = idleMainLooperUntilDone(background.submit<Boolean> { channel.deliver(TestSignal.Refetch.name) })
+
+        assertFalse(handled)
+    }
+
+    @Test
     fun deliverOnTheMainThreadRunsInline() {
         // Posting and waiting would deadlock: the main thread would wait for itself.
         val channel = FlagSignalChannel(mainThread)
