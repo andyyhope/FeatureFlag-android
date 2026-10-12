@@ -34,6 +34,9 @@ import kotlin.time.Duration.Companion.seconds
  * Merged into the host by depending on `featureflag-bridge`. It needs no registration: it serves
  * the schema `publishSchema(context)` writes, the overrides in the file
  * [SharedPreferencesSource.companion] reads, and the signals [FlagSignalChannel.host] delivers.
+ *
+ * A host cannot use the bridge on itself: the provider refuses callers in its own process, so the
+ * host reads and writes through its pole.
  */
 public class FlagBridgeProvider : ContentProvider() {
 
@@ -56,8 +59,8 @@ public class FlagBridgeProvider : ContentProvider() {
         val context = checkNotNull(context)
         source = SharedPreferencesSource.companion(context)
         preferences = context.getSharedPreferences(FlagBridgeContract.PREFERENCES_NAME, Context.MODE_PRIVATE)
-        preferences.registerOnSharedPreferenceChangeListener(listener)
         overridesUri = FlagBridgeContract.overridesUri(context.packageName)
+        preferences.registerOnSharedPreferenceChangeListener(listener)
         return true
     }
 

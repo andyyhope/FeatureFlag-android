@@ -67,6 +67,14 @@ class CrossProcessBridgeTest {
     }
 
     @Test
+    fun aColdHostConnectsWithinTheDefaultTimeout() = runBlocking<Unit> {
+        client.connect()
+        killHost()
+
+        assertEquals(FlagBridgeConnection.Connected(schema), FlagBridgeClient(context, host).connect())
+    }
+
+    @Test
     fun theProviderRunsInTheHostProcess() = runBlocking<Unit> {
         client.connect()
 
