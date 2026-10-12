@@ -8,6 +8,7 @@ import android.os.DeadObjectException
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
+import com.andyyhope.featureflag.errors.FlagException
 import com.andyyhope.featureflag.errors.FlagImportException
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.sources.FlagChange
@@ -228,6 +229,18 @@ class FlagBridgeSourceTest {
 
         assertTrue(error.bytes > FlagBridgeContract.MAX_PAYLOAD_BYTES)
         assertEquals(FlagBridgeContract.MAX_PAYLOAD_BYTES, error.limit)
+        assertEquals(listOf("overrides"), bridge.calls)
+    }
+
+    @Test
+    fun writingANonFiniteNumberIsRejectedBeforeSending() {
+        val source = source()
+
+        val error = assertFailsWith<FlagBridgeException.Rejected> {
+            source.setBox(banner, FlagValueBox.Double(Double.NaN))
+        }
+
+        assertEquals(FlagBridgeException.Rejected(FlagException.UnsupportedValue(banner).message.orEmpty()).message, error.message)
         assertEquals(listOf("overrides"), bridge.calls)
     }
 

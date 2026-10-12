@@ -4,7 +4,9 @@ import android.database.ContentObserver
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
+import com.andyyhope.featureflag.errors.FlagException
 import com.andyyhope.featureflag.errors.FlagImportException
+import com.andyyhope.featureflag.errors.FlagSerializationException
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.sources.FlagChange
 import com.andyyhope.featureflag.sources.FlagChangeEmitter
@@ -85,7 +87,12 @@ public class FlagBridgeSource internal constructor(
         if (changes.isEmpty()) return
         val values = changes.entries.mapNotNull { (key, box) -> box?.let { key to it } }.toMap()
         val removals = changes.filterValues { it == null }.keys.map { it.rawValue }.toTypedArray()
-        val bytes = FlagPayload(values).jsonBytes()
+        val bytes = try {
+            FlagPayload(values).jsonBytes()
+        } catch (error: FlagSerializationException.NonFiniteNumber) {
+            val key = error.key ?: values.entries.first { it.value.containsNonFiniteNumber }.key
+            throw FlagBridgeException.Rejected(FlagException.UnsupportedValue(key).message.orEmpty())
+        }
         if (bytes.size > FlagBridgeContract.MAX_PAYLOAD_BYTES) {
             throw FlagBridgeException.TooLarge(bytes.size, FlagBridgeContract.MAX_PAYLOAD_BYTES)
         }
