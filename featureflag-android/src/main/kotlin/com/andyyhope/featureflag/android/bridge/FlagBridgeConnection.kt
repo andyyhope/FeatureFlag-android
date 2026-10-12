@@ -22,14 +22,21 @@ public sealed interface FlagBridgeConnection {
                 "Add <uses-permission android:name=\"$permission\" /> to the companion's manifest."
     }
 
-    /** No app with [hostPackage] is installed. */
+    /**
+     * No app with [hostPackage] is installed, or (Android 11 and later) it does not include
+     * `featureflag-bridge`, which hides it from the companion just the same.
+     */
     public data class HostNotFound(public val hostPackage: String) : FlagBridgeConnection {
         override val message: String
-            get() = "No app with the package '$hostPackage' is installed. Install and run the host app, " +
-                "and check the package name: a debug build often adds a suffix such as '.debug'."
+            get() = "No app with the package '$hostPackage' is installed, or it does not include featureflag-bridge. " +
+                "Install and run the host app, check the package name (a debug build often adds a suffix such as " +
+                "'.debug'), and check that the host depends on featureflag-bridge."
     }
 
-    /** The host's bridge permission was not granted: the two apps are signed with different keys. */
+    /**
+     * The host defines its bridge permission but it was not granted to the companion, which is
+     * normally because the two apps are signed with different keys.
+     */
     public data class PermissionDenied(
         public val hostPackage: String,
         /** SHA-256 of each certificate, uppercase hex, no separators. */

@@ -56,6 +56,8 @@ public class FlagBridgeClient(
         val requested = packageInfo(packageManager, context.packageName, PackageManager.GET_PERMISSIONS)?.requestedPermissions
         if (requested == null || permission !in requested) return FlagBridgeConnection.UsesPermissionMissing(permission)
         packageInfo(packageManager, hostPackage, 0) ?: return FlagBridgeConnection.HostNotFound(hostPackage)
+        // Only a host that includes featureflag-bridge defines the permission, so without it the bridge is missing.
+        if (!definesPermission(packageManager)) return FlagBridgeConnection.BridgeNotInstalled(hostPackage)
         if (context.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) return permissionDenied()
         return within(timeout) { handshake() } ?: FlagBridgeConnection.Unresponsive(hostPackage, timeout)
     }
@@ -149,6 +151,13 @@ public class FlagBridgeClient(
         FlagBridgeConnection.Unresponsive(hostPackage, timeout)
     } catch (error: FlagSchemaException) {
         FlagBridgeConnection.Incompatible(error.message.orEmpty())
+    }
+
+    private fun definesPermission(packageManager: PackageManager): Boolean = try {
+        packageManager.getPermissionInfo(permission, 0)
+        true
+    } catch (ignored: PackageManager.NameNotFoundException) {
+        false
     }
 
     private fun permissionDenied(): FlagBridgeConnection.PermissionDenied {

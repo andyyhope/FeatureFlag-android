@@ -5,6 +5,7 @@ import android.content.ContentProviderClient
 import android.content.ContentResolver
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
+import android.content.pm.PermissionInfo
 import android.content.pm.Signature
 import android.content.pm.SigningInfo
 import androidx.test.core.app.ApplicationProvider
@@ -63,7 +64,8 @@ class FlagBridgeClientTest {
     fun setUp() {
         requestPermission(permission)
         installHost()
-        shadowOf(context).grantPermissions(permission)
+        // A host without the bridge does not define the permission, so the system never grants it.
+        shadowOf(context).denyPermissions(permission)
     }
 
     @After
@@ -114,8 +116,9 @@ class FlagBridgeClientTest {
 
         assertEquals(FlagBridgeConnection.HostNotFound(debugHost), connection)
         assertEquals(
-            "No app with the package 'com.example.host.debug' is installed. Install and run the host app, " +
-                "and check the package name: a debug build often adds a suffix such as '.debug'.",
+            "No app with the package 'com.example.host.debug' is installed, or it does not include featureflag-bridge. " +
+                "Install and run the host app, check the package name (a debug build often adds a suffix such as " +
+                "'.debug'), and check that the host depends on featureflag-bridge.",
             connection.message,
         )
     }
@@ -124,7 +127,7 @@ class FlagBridgeClientTest {
     fun aDeniedPermissionNamesBothCertificates() = runBlocking<Unit> {
         installHost(certificate = byteArrayOf(1, 2, 3))
         signCompanion(byteArrayOf(4, 5, 6))
-        shadowOf(context).denyPermissions(permission)
+        definePermission()
 
         val connection = FlagBridgeClient(context, host).connect()
 
@@ -143,6 +146,12 @@ class FlagBridgeClientTest {
 
         assertEquals(FlagBridgeConnection.BridgeNotInstalled(host), connection)
         assertEquals("'com.example.host' does not include featureflag-bridge. Add it to the host app's dependencies.", connection.message)
+    }
+
+    @Test
+    fun aHostThatDoesNotDefineThePermissionIsNotInstalledRatherThanDenied() = runBlocking<Unit> {
+        // Without the bridge the permission does not exist, so the system can never grant it.
+        assertEquals(FlagBridgeConnection.BridgeNotInstalled(host), FlagBridgeClient(context, host).connect())
     }
 
     @Test
@@ -370,12 +379,21 @@ class FlagBridgeClientTest {
         const val COMPANION_SHA256 = "787C798E39A5BC1910355BAE6D0CD87A36B2E10FD0202A83E3BB6B005DA83472"
     }
 
-    private fun installBridge(): FakeBridgeProvider =
-        Robolectric.buildContentProvider(FakeBridgeProvider::class.java)
+    /** A host with the bridge defines its permission; the system grants it to a companion signed alike. */
+    @Suppress("DEPRECATION") // PermissionInfo() is the only constructor before API 28 and Robolectric reads only the name.
+    private fun definePermission() {
+        shadowOf(context.packageManager).addPermissionInfo(PermissionInfo().apply { name = permission })
+    }
+
+    private fun installBridge(): FakeBridgeProvider {
+        definePermission()
+        shadowOf(context).grantPermissions(permission)
+        return Robolectric.buildContentProvider(FakeBridgeProvider::class.java)
             .create(FlagBridgeContract.authority(host))
             .get()
             .also {
                 it.hostPackage = host
                 it.schema = schema
             }
+    }
 }
