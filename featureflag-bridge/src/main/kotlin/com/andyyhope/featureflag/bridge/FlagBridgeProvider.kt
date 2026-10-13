@@ -77,6 +77,10 @@ public class FlagBridgeProvider : ContentProvider() {
             FlagBridgeContract.permission(context.packageName),
             "Only apps signed with the host's key may use the FeatureFlag bridge",
         )
+        // A client that has already given up gets its answer before the startup barrier holds a binder thread for it.
+        if (method == FlagBridgeContract.METHOD_SIGNAL && deadlineExpired(extras, enteredAt)) {
+            return Bundle().apply { putBoolean(FlagBridgeContract.KEY_HANDLED, false) }
+        }
         awaitStartup()
         return when (method) {
             FlagBridgeContract.METHOD_HELLO -> Bundle().apply {
@@ -95,6 +99,10 @@ public class FlagBridgeProvider : ContentProvider() {
             else -> throw IllegalArgumentException("Unknown bridge method '$method'.")
         }
     }
+
+    private fun deadlineExpired(extras: Bundle?, enteredAt: Long): Boolean =
+        extras != null && extras.containsKey(FlagBridgeContract.KEY_DEADLINE) &&
+            extras.getLong(FlagBridgeContract.KEY_DEADLINE) <= enteredAt
 
     /**
      * How long a signal's handlers may take. A client states when it stops waiting, so the host
@@ -203,6 +211,9 @@ public class FlagBridgeProvider : ContentProvider() {
             // Strict import reads -1e400 as an infinity, which the store cannot hold. Nothing was written.
             return rejected(error.message.orEmpty())
         }
+        // setBoxes commits nothing, and so notifies nothing, when the values already match. The companion
+        // orders its refresh replies on every successful apply being announced, so announce it here.
+        context.contentResolver.notifyChange(overridesUri, null)
         return status(FlagBridgeContract.STATUS_OK)
     }
 

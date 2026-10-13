@@ -94,8 +94,9 @@ public class FlagBridgeClient(
      * A live view of the host's companion overrides, validated against [schema]. Close it when done.
      * Suspends while it registers an observer and reads the overrides once, on a background thread,
      * so it is safe to call from the main thread. The source's writes and [FlagBridgeSource.refresh]
-     * still block: make those off the main thread. A call cancelled meanwhile closes the new source
-     * and throws [CancellationException]. Throws [FlagBridgeException.Unavailable] when the host's provider cannot be found or the
+     * still block: make those off the main thread. Construction is not interrupted, so a call cancelled
+     * meanwhile stays suspended until it finishes (up to the host's startup barrier), then closes the
+     * new source and throws [CancellationException]. Throws [FlagBridgeException.Unavailable] when the host's provider cannot be found or the
      * companion may not observe it. A first read that fails leaves the source empty instead.
      */
     public suspend fun source(schema: FlagSchema, name: String = "Companion"): FlagBridgeSource {

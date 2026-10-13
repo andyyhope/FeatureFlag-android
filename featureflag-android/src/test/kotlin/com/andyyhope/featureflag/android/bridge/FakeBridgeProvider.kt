@@ -84,7 +84,11 @@ class FakeBridgeProvider : ContentProvider() {
     private var heldReplyGate: CountDownLatch? = null
     private var heldApplyGate: CountDownLatch? = null
 
-    /** Whether an apply tells observers, as a real host does. */
+    /**
+     * Whether an apply tells observers. The real provider announces every successful apply, even one
+     * that changes nothing, so this stays true; a test sets it false only to isolate one ordering
+     * path from the refresh that announcement would trigger.
+     */
     @Volatile
     var notifiesOnApply: Boolean = true
 

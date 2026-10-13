@@ -100,12 +100,19 @@ public class FlagBridgeSource internal constructor(
     /** From the in-memory copy; never a call into the host. */
     override fun box(key: FlagKey, type: FlagValueType): FlagValueBox? = cache[key]?.takeIf { it.matches(type) }
 
-    /** Blocking IPC: one METHOD_APPLY. Call off the main thread. Throws [FlagBridgeException]. */
+    /**
+     * Blocking IPC: one METHOD_APPLY. Call off the main thread. Throws [FlagBridgeException]. A write
+     * that overtakes an in-flight refresh drops that reply, which is safe only because the host announces
+     * every successful apply, even one that changes nothing, and so a newer refresh follows.
+     */
     override fun setBox(key: FlagKey, box: FlagValueBox?) {
         setBoxes(mapOf(key to box))
     }
 
-    /** Blocking IPC: one METHOD_APPLY carrying every change, one host commit. Throws [FlagBridgeException]. */
+    /**
+     * Blocking IPC: one METHOD_APPLY carrying every change, one host commit. Throws [FlagBridgeException].
+     * Like [setBox], it relies on the host announcing every successful apply to order refresh replies.
+     */
     override fun setBoxes(changes: Map<FlagKey, FlagValueBox?>) {
         if (changes.isEmpty()) return
         val values = changes.entries.mapNotNull { (key, box) -> box?.let { key to it } }.toMap()
@@ -190,7 +197,10 @@ public class FlagBridgeSource internal constructor(
         thread.quitSafely()
     }
 
-    /** Unregisters the ContentObserver and stops its thread; later change notifications do nothing. */
+    /**
+     * Unregisters the ContentObserver and stops its thread. Change notifications already queued do
+     * nothing after this; a refresh already running may still finish.
+     */
     override fun close() {
         closed = true
         client.resolver.unregisterContentObserver(observer)

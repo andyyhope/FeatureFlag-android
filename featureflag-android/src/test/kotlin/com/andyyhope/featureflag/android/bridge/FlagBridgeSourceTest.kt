@@ -499,6 +499,57 @@ class FlagBridgeSourceTest {
         assertEquals(FlagValueBox.Int(7), source.box(limit, FlagValueType.Int))
     }
 
+    @Test
+    fun aWriteOvertakenByANewerRefreshIsSkipped() = runBlocking<Unit> {
+        val source = source()
+        val applyGate = CountDownLatch(1)
+        val applyReached = CountDownLatch(1)
+        bridge.applyGate = applyGate
+        bridge.applyReached = applyReached
+        bridge.notifiesOnApply = false
+        // The host commits the write but holds its reply; a refresh that began after the write reads it and
+        // is applied first, so the write's own update is stale by the time its reply arrives.
+        val write = launch(Dispatchers.Default) { source.setBox(enabled, FlagValueBox.Bool(true)) }
+        assertTrue(applyReached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The write never reached the host.")
+        bridge.values = bridge.values + (limit to FlagValueBox.Int(7))
+
+        source.changes.test {
+            source.refresh()
+            assertEquals(FlagChange.All, awaitItem())
+
+            applyGate.countDown()
+            write.join()
+
+            expectNoEvents()
+        }
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+        assertEquals(FlagValueBox.Int(7), source.box(limit, FlagValueType.Int))
+    }
+
+    @Test
+    fun aNoOpWriteDoesNotLoseANewerHostChange() = runBlocking<Unit> {
+        bridge.values = mapOf(enabled to FlagValueBox.Bool(true))
+        val source = source()
+        val gate = CountDownLatch(1)
+        val reached = CountDownLatch(1)
+        bridge.replyGate = gate
+        bridge.replyReached = reached
+        // The host changes and the observer's refresh reads it, but its reply is held.
+        bridge.hostWrites(mapOf(enabled to FlagValueBox.Bool(true), limit to FlagValueBox.Int(7)))
+        assertTrue(reached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The observer's refresh never reached the host.")
+
+        // A write of what the host already holds returns first. The host still announces it, as the real
+        // provider does, so a refresh follows the write and the held reply may be dropped.
+        source.setBox(enabled, FlagValueBox.Bool(true))
+        gate.countDown()
+
+        withTimeout(OBSERVER_WAIT_MILLIS) {
+            while (source.box(limit, FlagValueType.Int) == null) delay(10)
+        }
+        assertEquals(FlagValueBox.Int(7), source.box(limit, FlagValueType.Int))
+        assertNull(source.lastFailure.value)
+    }
+
     // Observing
 
     @Test

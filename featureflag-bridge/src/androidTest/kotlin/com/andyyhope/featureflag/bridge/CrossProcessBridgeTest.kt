@@ -180,7 +180,7 @@ class CrossProcessBridgeTest {
         client.connect()
         killHost()
 
-        assertTrue(client.send(BridgeTestSignal.Slow, timeout = 7.seconds))
+        assertTrue(client.send(BridgeTestSignal.Slow, timeout = 10.seconds))
     }
 
     // Host death

@@ -61,6 +61,7 @@
 - It is cleared (`null`) by the next successful refresh. A write's success or failure does not change it: a failed `setBoxes` is reported to its caller, and a successful one does not prove the whole cache is current.
 - Replies are ordered. Every refresh takes a ticket from a monotonic counter before its IPC. When its reply (success or failure) comes back, it is applied only if no newer ticket has been applied; otherwise it is dropped. A successful `setBoxes` takes a fresh ticket when it updates the cache, so a refresh that started before the write and answers after it is dropped (the host's own change notification triggers a newer refresh anyway). The cache swap, the ticket check and the `lastFailure` update happen under the existing `lock`.
 - `changes` emission rules are unchanged.
+- Fix-round note: the write rule above ("takes a fresh ticket when it updates the cache") was replaced by "takes its ticket before the IPC; skips its local update when a newer reply was applied". That ordering relies on every successful host apply announcing a change, so `FlagBridgeProvider.apply` now calls `notifyChange` after each successful `setBoxes`, including a no-op one.
 
 **Tests (write first, show failing):**
 - `aRefreshThatFailsIsReportedAndKeepsTheCache`: host has an override; source created; host switches to `forcedStatus = STATUS_NOT_PUBLISHED`; `refresh()` throws `NotPublished`; `lastFailure.value` is `NotPublished`; `box` still serves the old override.

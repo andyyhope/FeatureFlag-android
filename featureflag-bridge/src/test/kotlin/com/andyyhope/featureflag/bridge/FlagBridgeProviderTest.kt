@@ -292,6 +292,19 @@ class FlagBridgeProviderTest {
     }
 
     @Test
+    fun aNoOpApplyStillAnnouncesAChange() {
+        // The companion's ordering of replies relies on every successful apply being announced.
+        preferences.edit().putBoolean("enabled", true).commit()
+        shadowOf(Looper.getMainLooper()).idle()
+        val changes = observeOverrides()
+
+        provider.call(FlagBridgeContract.METHOD_APPLY, null, applyExtras(mapOf(enabled to FlagValueBox.Bool(true))))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(changes.get() > 0)
+    }
+
+    @Test
     fun aWriteByTheHostItselfNotifiesObserversToo() {
         // The host's own setOverride lands in the same file, so a companion sees it as well.
         val changes = observeOverrides()
@@ -354,6 +367,17 @@ class FlagBridgeProviderTest {
         } finally {
             observation.close()
         }
+    }
+
+    @Test
+    fun anExpiredDeadlineDoesNotWaitForStartup() {
+        // The main looper never runs, as on a cold host: the client has given up, so the barrier is not worth holding a thread for.
+        provider.elapsedRealtime = ::realClock
+
+        val (handled, waited) = signalFromBackground(realClock() - 5_000)
+
+        assertFalse(handled)
+        assertTrue(waited < 1_000, "waited $waited ms")
     }
 
     @Test
