@@ -17,8 +17,12 @@ import com.andyyhope.featureflag.signals.FlagSignal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -78,12 +82,29 @@ public class FlagBridgeClient(
 
     /**
      * A live view of the host's companion overrides, validated against [schema]. Close it when done.
-     * Blocking: it reads the overrides once before returning, so call it off the main thread.
-     * Throws [FlagBridgeException.Unavailable] when the host's provider cannot be found or the
+     * Suspends while it registers an observer and reads the overrides once, on a background thread,
+     * so it is safe to call from the main thread. The source's writes and [FlagBridgeSource.refresh]
+     * still block: make those off the main thread. A call cancelled meanwhile closes the new source
+     * and throws [CancellationException]. Throws [FlagBridgeException.Unavailable] when the host's provider cannot be found or the
      * companion may not observe it. A first read that fails leaves the source empty instead.
      */
-    public fun source(schema: FlagSchema, name: String = "Companion"): FlagBridgeSource =
-        FlagBridgeSource(this, schema, name)
+    public suspend fun source(schema: FlagSchema, name: String = "Companion"): FlagBridgeSource {
+        // Not interrupted mid-way: a half-built source would leave its thread and observer behind.
+        // withContext discards its result when the caller was cancelled meanwhile, so the source is
+        // handed out through a variable to close it in that case too. The failure travels as a value
+        // so the coroutines machinery does not wrap it on the way out.
+        var built: Result<FlagBridgeSource>? = null
+        try {
+            withContext(Dispatchers.IO + NonCancellable) {
+                built = runCatching { FlagBridgeSource(this@FlagBridgeClient, schema, name) }
+            }
+            currentCoroutineContext().ensureActive()
+        } catch (cancelled: CancellationException) {
+            built?.getOrNull()?.close()
+            throw cancelled
+        }
+        return checkNotNull(built).getOrThrow()
+    }
 
     /**
      * Runs [operation] on a fresh unstable client for the host's provider and closes it. A

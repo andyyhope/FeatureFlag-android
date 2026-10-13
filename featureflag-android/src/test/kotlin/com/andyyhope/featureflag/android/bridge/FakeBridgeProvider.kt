@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.os.DeadObjectException
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import com.andyyhope.featureflag.errors.FlagImportException
 import com.andyyhope.featureflag.schema.FlagSchema
@@ -64,10 +65,14 @@ class FakeBridgeProvider : ContentProvider() {
     /** Every method called, in order, with its argument when it has one. */
     val calls = CopyOnWriteArrayList<String>()
 
+    /** For each entry of [calls], whether it ran on the main thread. */
+    val onMainThread = CopyOnWriteArrayList<Boolean>()
+
     override fun onCreate(): Boolean = true
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
         calls.add(if (arg == null) method else "$method $arg")
+        onMainThread.add(Looper.getMainLooper().thread === Thread.currentThread())
         stall?.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
         refusal?.let { throw it }
         failure?.let { throw it }

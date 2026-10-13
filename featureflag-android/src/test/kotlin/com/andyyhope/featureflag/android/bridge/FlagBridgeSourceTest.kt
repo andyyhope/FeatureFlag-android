@@ -16,20 +16,25 @@ import com.andyyhope.featureflag.transport.FlagPayload
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowContentResolver
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -117,7 +122,41 @@ class FlagBridgeSourceTest {
         bridge.forcedStatus = FlagBridgeContract.STATUS_NOT_PUBLISHED
 
         assertNull(source().box(enabled, FlagValueType.Bool))
-        assertNull(FlagBridgeClient(context, "com.example.absent").source(schema).also(opened::add).box(enabled, FlagValueType.Bool))
+        assertNull(source(host = "com.example.absent").box(enabled, FlagValueType.Bool))
+    }
+
+    @Test
+    fun aSourceIsBuiltOffTheMainThread() {
+        bridge.values = mapOf(enabled to FlagValueBox.Bool(true))
+
+        val source = source()
+
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+        assertEquals("overrides", bridge.calls.first())
+        assertFalse(bridge.onMainThread.first(), "The first overrides call ran on the main thread.")
+    }
+
+    @Test
+    fun aCancelledSourceCreationLeaksNothing() = runBlocking<Unit> {
+        val stall = CountDownLatch(1)
+        bridge.stall = stall
+        val before = flagBridgeThreads().toSet()
+        val uri = FlagBridgeContract.overridesUri(host)
+
+        val creation = launch(Dispatchers.Default) { FlagBridgeClient(context, host).source(schema).also(opened::add) }
+        val deadline = System.nanoTime() + THREAD_EXIT_NANOS
+        while (bridge.calls.isEmpty() && System.nanoTime() < deadline) delay(10)
+        assertTrue(bridge.calls.isNotEmpty(), "The source never reached the host.")
+        creation.cancel()
+        stall.countDown()
+        creation.join()
+
+        assertTrue(creation.isCancelled)
+        val exit = System.nanoTime() + THREAD_EXIT_NANOS
+        while ((flagBridgeThreads().toSet() - before).isNotEmpty() && System.nanoTime() < exit) delay(10)
+        assertTrue((flagBridgeThreads().toSet() - before).isEmpty(), "A FlagBridgeSource thread outlived the cancelled call.")
+        assertTrue(shadowOf(context.contentResolver).getContentObservers(uri).isEmpty())
+        assertTrue(opened.isEmpty())
     }
 
     // Writes
@@ -193,7 +232,7 @@ class FlagBridgeSourceTest {
 
     @Test
     fun writingToAHostWithoutTheBridgeThrowsUnavailable() {
-        val source = FlagBridgeClient(context, "com.example.absent").source(schema).also(opened::add)
+        val source = source(host = "com.example.absent")
 
         assertFailsWith<FlagBridgeException.Unavailable> { source.setBox(enabled, FlagValueBox.Bool(true)) }
     }
@@ -304,7 +343,7 @@ class FlagBridgeSourceTest {
     @Test
     @Config(shadows = [UnobservableContentResolver::class])
     fun aSourceThatCannotObserveTheHostIsUnavailableAndLeaksNoThread() {
-        val error = assertFailsWith<FlagBridgeException.Unavailable> { FlagBridgeClient(context, host).source(schema) }
+        val error = assertFailsWith<FlagBridgeException.Unavailable> { source() }
 
         assertIs<SecurityException>(error.cause)
         val deadline = System.nanoTime() + THREAD_EXIT_NANOS
@@ -342,8 +381,8 @@ class FlagBridgeSourceTest {
 
     // Helpers
 
-    private fun source(name: String = "Companion"): FlagBridgeSource =
-        FlagBridgeClient(context, host).source(schema, name).also(opened::add)
+    private fun source(name: String = "Companion", host: String = this.host): FlagBridgeSource =
+        runBlocking { FlagBridgeClient(context, host).source(schema, name) }.also(opened::add)
 
     private fun flagBridgeThreads() =
         Thread.getAllStackTraces().keys.filter { it.name == "FlagBridgeSource" && it.isAlive }

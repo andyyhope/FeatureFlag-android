@@ -219,7 +219,7 @@ class CrossProcessBridgeTest {
         val before = sourceThreads()
 
         val error = assertFailsWith<FlagBridgeException.Unavailable> {
-            FlagBridgeClient(context, ABSENT_HOST).source(schema)
+            runBlocking { FlagBridgeClient(context, ABSENT_HOST).source(schema) }
         }
 
         assertTrue(error.cause is SecurityException, "${error.cause}")
@@ -230,7 +230,7 @@ class CrossProcessBridgeTest {
 
     // Helpers
 
-    private fun source(): FlagBridgeSource = client.source(schema).also(opened::add)
+    private fun source(): FlagBridgeSource = runBlocking { client.source(schema) }.also(opened::add)
 
     private fun sourceThreads(): Int = Thread.getAllStackTraces().keys.count { it.isAlive && it.name == SOURCE_THREAD_NAME }
 
