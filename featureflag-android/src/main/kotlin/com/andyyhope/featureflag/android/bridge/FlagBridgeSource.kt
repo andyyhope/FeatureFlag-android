@@ -123,11 +123,15 @@ public class FlagBridgeSource internal constructor(
             putByteArray(FlagBridgeContract.KEY_PAYLOAD, bytes)
             putStringArray(FlagBridgeContract.KEY_REMOVE, removals)
         }
+        // Taken before the IPC: a refresh issued once the write began may already carry newer state.
+        val ticket = tickets.incrementAndGet()
         val reply = request(FlagBridgeContract.METHOD_APPLY, extras)
         if (reply.getString(FlagBridgeContract.KEY_STATUS) != FlagBridgeContract.STATUS_OK) throw failure(reply)
         val changed = synchronized(lock) {
-            // A refresh that started before this write answers older than it: its reply is dropped.
-            appliedTicket = tickets.incrementAndGet()
+            // A newer ticket has been applied: that refresh began after the write and already holds it, or
+            // will after the host's own change notification. Applying the write now could revert newer state.
+            if (appliedTicket > ticket) return
+            appliedTicket = ticket
             val updated = cache.toMutableMap()
             val changed = changes.filter { (key, box) -> updated[key] != box }.keys
             changes.forEach { (key, box) -> if (box == null) updated.remove(key) else updated[key] = box }
@@ -141,7 +145,8 @@ public class FlagBridgeSource internal constructor(
      * Blocking IPC: re-reads the host's overrides; emits [FlagChange.All] when anything differs. Throws
      * [FlagBridgeException], which is also published as [lastFailure]. A reply that a newer refresh or
      * write has already overtaken is dropped: it neither changes the copy nor [lastFailure]. Still works
-     * after [close] as an explicit call; only the host's change notifications stop.
+     * after [close] as an explicit call; only the host's change notifications stop. A failure that was
+     * overtaken is still thrown to this caller; [lastFailure] is left to the newer result.
      */
     public fun refresh() {
         val ticket = tickets.incrementAndGet()
@@ -185,7 +190,7 @@ public class FlagBridgeSource internal constructor(
         thread.quitSafely()
     }
 
-    /** Unregisters the ContentObserver and stops its thread. */
+    /** Unregisters the ContentObserver and stops its thread; later change notifications do nothing. */
     override fun close() {
         closed = true
         client.resolver.unregisterContentObserver(observer)

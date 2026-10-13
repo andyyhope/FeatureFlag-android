@@ -73,6 +73,17 @@ class FakeBridgeProvider : ContentProvider() {
     @Volatile
     var replyReached: CountDownLatch? = null
 
+    /** Like [replyGate], for an apply: the host commits the write, then holds its reply. Used once. */
+    @Volatile
+    var applyGate: CountDownLatch? = null
+
+    /** Opened when a call reaches [applyGate]. */
+    @Volatile
+    var applyReached: CountDownLatch? = null
+
+    private var heldReplyGate: CountDownLatch? = null
+    private var heldApplyGate: CountDownLatch? = null
+
     /** Whether an apply tells observers, as a real host does. */
     @Volatile
     var notifiesOnApply: Boolean = true
@@ -141,13 +152,24 @@ class FakeBridgeProvider : ContentProvider() {
         val removals = extras?.getStringArray(FlagBridgeContract.KEY_REMOVE).orEmpty().map(::FlagKey)
         values = values + payload.values - removals.toSet()
         if (notifiesOnApply) notifyObservers()
+        holdApply()
         return status(FlagBridgeContract.STATUS_OK)
     }
 
+    // A gate is held once; it stays set so a test's cleanup can still open it.
     private fun holdReply() {
         val gate = replyGate ?: return
-        replyGate = null
+        if (gate === heldReplyGate) return
+        heldReplyGate = gate
         replyReached?.countDown()
+        gate.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
+    }
+
+    private fun holdApply() {
+        val gate = applyGate ?: return
+        if (gate === heldApplyGate) return
+        heldApplyGate = gate
+        applyReached?.countDown()
         gate.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
     }
 

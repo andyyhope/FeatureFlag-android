@@ -87,6 +87,7 @@ class FlagBridgeSourceTest {
     fun closeSources() {
         bridge.stall?.countDown()
         bridge.replyGate?.countDown()
+        bridge.applyGate?.countDown()
         opened.forEach { it.close() }
         // quitSafely still runs what is queued; none of it may reach the next test's provider.
         awaitSourceThreadsGone()
@@ -457,11 +458,45 @@ class FlagBridgeSourceTest {
         val older = launch(Dispatchers.Default) { source.refresh() }
         assertTrue(reached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The older refresh never reached the host.")
 
-        source.setBox(enabled, FlagValueBox.Bool(true))
-        gate.countDown()
-        older.join()
+        source.changes.test {
+            source.setBox(enabled, FlagValueBox.Bool(true))
+            assertEquals(FlagChange.Keys(setOf(enabled)), awaitItem())
+
+            gate.countDown()
+            older.join()
+
+            expectNoEvents()
+        }
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+    }
+
+    @Test
+    fun aRefreshIssuedDuringAWriteIsNotDropped() = runBlocking<Unit> {
+        val source = source()
+        val applyGate = CountDownLatch(1)
+        val applyReached = CountDownLatch(1)
+        val replyGate = CountDownLatch(1)
+        val replyReached = CountDownLatch(1)
+        bridge.applyGate = applyGate
+        bridge.applyReached = applyReached
+        bridge.notifiesOnApply = false
+        // The host commits the write but its reply is held; meanwhile another change lands and a refresh
+        // reads both, then its own reply is held until after the write has returned.
+        val write = launch(Dispatchers.Default) { source.setBox(enabled, FlagValueBox.Bool(true)) }
+        assertTrue(applyReached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The write never reached the host.")
+        bridge.values = mapOf(enabled to FlagValueBox.Bool(true), limit to FlagValueBox.Int(7))
+        bridge.replyGate = replyGate
+        bridge.replyReached = replyReached
+        val refresh = launch(Dispatchers.Default) { source.refresh() }
+        assertTrue(replyReached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The refresh never reached the host.")
+
+        applyGate.countDown()
+        write.join()
+        replyGate.countDown()
+        refresh.join()
 
         assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+        assertEquals(FlagValueBox.Int(7), source.box(limit, FlagValueType.Int))
     }
 
     // Observing
