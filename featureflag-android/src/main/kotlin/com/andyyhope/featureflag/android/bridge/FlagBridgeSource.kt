@@ -16,6 +16,10 @@ import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A live view of a host's companion overrides, for a companion's pole or editor.
@@ -40,14 +44,25 @@ public class FlagBridgeSource internal constructor(
     @Volatile
     private var cache: Map<FlagKey, FlagValueBox> = emptyMap()
 
+    // Every refresh takes a ticket before its IPC; a reply is applied only if no newer ticket has been.
+    private val tickets = AtomicLong()
+    private var appliedTicket = 0L
+
+    @Volatile
+    private var closed = false
+
+    private val failureState = MutableStateFlow<FlagBridgeException?>(null)
+
     private val thread = HandlerThread("FlagBridgeSource").apply { start() }
 
     private val observer = object : ContentObserver(Handler(thread.looper)) {
         override fun onChange(selfChange: Boolean) {
+            // quitSafely still runs what was queued before close(); a closed source does nothing.
+            if (closed) return
             try {
                 refresh()
             } catch (ignored: FlagBridgeException) {
-                // The next change, or an explicit refresh, tries again.
+                // Reported through lastFailure; the next change, or an explicit refresh, tries again.
             }
         }
     }
@@ -64,7 +79,7 @@ public class FlagBridgeSource internal constructor(
             try {
                 refresh()
             } catch (ignored: FlagBridgeException) {
-                // Start empty; the companion shows the defaults until the host answers.
+                // Start empty, reported through lastFailure; the companion shows the defaults until the host answers.
             }
         } catch (error: RuntimeException) {
             abandon()
@@ -73,6 +88,14 @@ public class FlagBridgeSource internal constructor(
     }
 
     override val changes: Flow<FlagChange> = emitter.changes
+
+    /**
+     * Why the latest refresh failed, or null when it succeeded. Set by a failed first refresh, observer
+     * refresh or explicit [refresh]; the cache keeps its last good values. Cleared by the next successful
+     * refresh. A write does not change it: a failed write is thrown to its caller, and a successful one
+     * does not prove the whole copy is current.
+     */
+    public val lastFailure: StateFlow<FlagBridgeException?> = failureState.asStateFlow()
 
     /** From the in-memory copy; never a call into the host. */
     override fun box(key: FlagKey, type: FlagValueType): FlagValueBox? = cache[key]?.takeIf { it.matches(type) }
@@ -103,6 +126,8 @@ public class FlagBridgeSource internal constructor(
         val reply = request(FlagBridgeContract.METHOD_APPLY, extras)
         if (reply.getString(FlagBridgeContract.KEY_STATUS) != FlagBridgeContract.STATUS_OK) throw failure(reply)
         val changed = synchronized(lock) {
+            // A refresh that started before this write answers older than it: its reply is dropped.
+            appliedTicket = tickets.incrementAndGet()
             val updated = cache.toMutableMap()
             val changed = changes.filter { (key, box) -> updated[key] != box }.keys
             changes.forEach { (key, box) -> if (box == null) updated.remove(key) else updated[key] = box }
@@ -112,13 +137,35 @@ public class FlagBridgeSource internal constructor(
         if (changed.isNotEmpty()) emitter.emit(FlagChange.Keys(changed))
     }
 
-    /** Blocking IPC: re-reads the host's overrides; emits [FlagChange.All] when anything differs. Throws [FlagBridgeException]. */
+    /**
+     * Blocking IPC: re-reads the host's overrides; emits [FlagChange.All] when anything differs. Throws
+     * [FlagBridgeException], which is also published as [lastFailure]. A reply that a newer refresh or
+     * write has already overtaken is dropped: it neither changes the copy nor [lastFailure]. Still works
+     * after [close] as an explicit call; only the host's change notifications stop.
+     */
     public fun refresh() {
-        val reply = request(FlagBridgeContract.METHOD_OVERRIDES)
-        if (reply.getString(FlagBridgeContract.KEY_STATUS) != FlagBridgeContract.STATUS_OK) throw failure(reply)
-        val values = decode(reply.getByteArray(FlagBridgeContract.KEY_PAYLOAD))
+        val ticket = tickets.incrementAndGet()
+        val values = try {
+            val reply = request(FlagBridgeContract.METHOD_OVERRIDES)
+            if (reply.getString(FlagBridgeContract.KEY_STATUS) != FlagBridgeContract.STATUS_OK) throw failure(reply)
+            decode(reply.getByteArray(FlagBridgeContract.KEY_PAYLOAD))
+        } catch (error: FlagBridgeException) {
+            synchronized(lock) {
+                if (ticket > appliedTicket) {
+                    appliedTicket = ticket
+                    failureState.value = error
+                }
+            }
+            throw error
+        }
         val changed = synchronized(lock) {
-            (values != cache).also { cache = values }
+            if (ticket > appliedTicket) {
+                appliedTicket = ticket
+                failureState.value = null
+                (values != cache).also { cache = values }
+            } else {
+                false
+            }
         }
         if (changed) emitter.emit(FlagChange.All)
     }
@@ -140,6 +187,7 @@ public class FlagBridgeSource internal constructor(
 
     /** Unregisters the ContentObserver and stops its thread. */
     override fun close() {
+        closed = true
         client.resolver.unregisterContentObserver(observer)
         thread.quitSafely()
     }

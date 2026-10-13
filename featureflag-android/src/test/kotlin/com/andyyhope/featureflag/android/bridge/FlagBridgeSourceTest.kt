@@ -18,8 +18,10 @@ import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -32,6 +34,7 @@ import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowContentResolver
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -68,9 +71,11 @@ class FlagBridgeSourceTest {
 
     private lateinit var bridge: FakeBridgeProvider
     private val opened = mutableListOf<FlagBridgeSource>()
+    private lateinit var threadsBefore: Set<Thread>
 
     @Before
     fun setUp() {
+        threadsBefore = flagBridgeThreads().toSet()
         bridge = Robolectric.buildContentProvider(FakeBridgeProvider::class.java)
             .create(FlagBridgeContract.authority(host))
             .get()
@@ -80,7 +85,11 @@ class FlagBridgeSourceTest {
 
     @After
     fun closeSources() {
+        bridge.stall?.countDown()
+        bridge.replyGate?.countDown()
         opened.forEach { it.close() }
+        // quitSafely still runs what is queued; none of it may reach the next test's provider.
+        awaitSourceThreadsGone()
     }
 
     // Construction and reads
@@ -351,6 +360,110 @@ class FlagBridgeSourceTest {
         assertTrue(flagBridgeThreads().isEmpty())
     }
 
+    // Failures and ordering
+
+    @Test
+    fun aRefreshThatFailsIsReportedAndKeepsTheCache() {
+        bridge.values = mapOf(enabled to FlagValueBox.Bool(true))
+        val source = source()
+        assertNull(source.lastFailure.value)
+        bridge.forcedStatus = FlagBridgeContract.STATUS_NOT_PUBLISHED
+
+        assertFailsWith<FlagBridgeException.NotPublished> { source.refresh() }
+
+        assertIs<FlagBridgeException.NotPublished>(source.lastFailure.value)
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+    }
+
+    @Test
+    fun aSuccessfulRefreshClearsTheFailure() {
+        val source = source()
+        bridge.forcedStatus = FlagBridgeContract.STATUS_NOT_PUBLISHED
+        assertFailsWith<FlagBridgeException.NotPublished> { source.refresh() }
+        bridge.forcedStatus = null
+
+        source.refresh()
+
+        assertNull(source.lastFailure.value)
+    }
+
+    @Test
+    fun anObserverRefreshThatFailsIsReported() = runBlocking<Unit> {
+        val source = source()
+        bridge.forcedStatus = FlagBridgeContract.STATUS_REJECTED
+
+        bridge.hostWrites(mapOf(enabled to FlagValueBox.Bool(true)))
+
+        val failure = withTimeout(OBSERVER_WAIT_MILLIS) { source.lastFailure.first { it != null } }
+        assertIs<FlagBridgeException.Rejected>(failure)
+    }
+
+    @Test
+    fun aFirstRefreshThatFailsIsReported() {
+        bridge.forcedStatus = FlagBridgeContract.STATUS_NOT_PUBLISHED
+
+        val source = source()
+
+        assertNull(source.box(enabled, FlagValueType.Bool))
+        assertIs<FlagBridgeException.NotPublished>(source.lastFailure.value)
+    }
+
+    @Test
+    fun aWriteDoesNotClearAFailure() {
+        val source = source()
+        bridge.forcedStatus = FlagBridgeContract.STATUS_NOT_PUBLISHED
+        assertFailsWith<FlagBridgeException.NotPublished> { source.refresh() }
+        bridge.forcedStatus = null
+        bridge.notifiesOnApply = false
+
+        source.setBox(enabled, FlagValueBox.Bool(true))
+
+        assertIs<FlagBridgeException.NotPublished>(source.lastFailure.value)
+    }
+
+    @Test
+    fun anOlderReplyDoesNotOverwriteANewerOne() = runBlocking<Unit> {
+        val source = source()
+        val gate = CountDownLatch(1)
+        val reached = CountDownLatch(1)
+        bridge.replyGate = gate
+        bridge.replyReached = reached
+        // Its reply is computed from the empty overrides, then held while a newer refresh passes it.
+        val older = launch(Dispatchers.Default) { source.refresh() }
+        assertTrue(reached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The older refresh never reached the host.")
+        bridge.values = mapOf(enabled to FlagValueBox.Bool(true))
+
+        source.changes.test {
+            source.refresh()
+            assertEquals(FlagChange.All, awaitItem())
+
+            gate.countDown()
+            older.join()
+
+            expectNoEvents()
+        }
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+        assertNull(source.lastFailure.value)
+    }
+
+    @Test
+    fun anOlderReplyDoesNotOverwriteAWrite() = runBlocking<Unit> {
+        val source = source()
+        val gate = CountDownLatch(1)
+        val reached = CountDownLatch(1)
+        bridge.replyGate = gate
+        bridge.replyReached = reached
+        bridge.notifiesOnApply = false
+        val older = launch(Dispatchers.Default) { source.refresh() }
+        assertTrue(reached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The older refresh never reached the host.")
+
+        source.setBox(enabled, FlagValueBox.Bool(true))
+        gate.countDown()
+        older.join()
+
+        assertEquals(FlagValueBox.Bool(true), source.box(enabled, FlagValueType.Bool))
+    }
+
     // Observing
 
     @Test
@@ -379,10 +492,40 @@ class FlagBridgeSourceTest {
         assertNull(source.box(enabled, FlagValueType.Bool))
     }
 
+    @Test
+    fun aClosedSourceIgnoresALateChange() = runBlocking<Unit> {
+        val source = source()
+        val gate = CountDownLatch(1)
+        val reached = CountDownLatch(1)
+        bridge.replyGate = gate
+        bridge.replyReached = reached
+        // The first notification holds the observer thread inside its refresh; the second waits queued behind it.
+        bridge.hostWrites(emptyMap())
+        assertTrue(reached.await(THREAD_EXIT_NANOS, TimeUnit.NANOSECONDS), "The observer never reached the host.")
+        bridge.hostWrites(mapOf(enabled to FlagValueBox.Bool(true)))
+        source.close()
+
+        source.changes.test {
+            gate.countDown()
+            awaitSourceThreadsGone()
+
+            expectNoEvents()
+        }
+        assertEquals(listOf("overrides", "overrides"), bridge.calls.toList())
+        assertNull(source.box(enabled, FlagValueType.Bool))
+    }
+
     // Helpers
 
     private fun source(name: String = "Companion", host: String = this.host): FlagBridgeSource =
         runBlocking { FlagBridgeClient(context, host).source(schema, name) }.also(opened::add)
+
+    /** Waits for every FlagBridgeSource thread this test started to finish what it had queued and exit. */
+    private fun awaitSourceThreadsGone() {
+        val deadline = System.nanoTime() + THREAD_EXIT_NANOS
+        while ((flagBridgeThreads().toSet() - threadsBefore).isNotEmpty() && System.nanoTime() < deadline) Thread.sleep(10)
+        assertTrue((flagBridgeThreads().toSet() - threadsBefore).isEmpty(), "A FlagBridgeSource thread outlived its test.")
+    }
 
     private fun flagBridgeThreads() =
         Thread.getAllStackTraces().keys.filter { it.name == "FlagBridgeSource" && it.isAlive }
@@ -412,6 +555,7 @@ class FlagBridgeSourceTest {
     private companion object {
         /** Long enough for the observer thread to have refreshed, had it been told to. */
         const val OBSERVER_SETTLE_MILLIS = 300L
+        const val OBSERVER_WAIT_MILLIS = 5_000L
         const val THREAD_EXIT_NANOS = 2_000_000_000L
     }
 }

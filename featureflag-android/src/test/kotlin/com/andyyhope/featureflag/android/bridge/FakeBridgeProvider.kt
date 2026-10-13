@@ -62,6 +62,21 @@ class FakeBridgeProvider : ContentProvider() {
     /** When set, calls wait for it first, as a host stuck starting up does. */
     var stall: CountDownLatch? = null
 
+    /**
+     * When set, the next overrides call computes its reply, signals [replyReached], then holds the reply
+     * until this opens, so the reply carries the state from before the hold. Used once.
+     */
+    @Volatile
+    var replyGate: CountDownLatch? = null
+
+    /** Opened when a call reaches [replyGate]. */
+    @Volatile
+    var replyReached: CountDownLatch? = null
+
+    /** Whether an apply tells observers, as a real host does. */
+    @Volatile
+    var notifiesOnApply: Boolean = true
+
     /** Every method called, in order, with its argument when it has one. */
     val calls = CopyOnWriteArrayList<String>()
 
@@ -85,7 +100,7 @@ class FakeBridgeProvider : ContentProvider() {
         }
         return when (method) {
             FlagBridgeContract.METHOD_HELLO -> Bundle().apply { putInt(FlagBridgeContract.KEY_PROTOCOL, protocol) }
-            FlagBridgeContract.METHOD_OVERRIDES -> overrides()
+            FlagBridgeContract.METHOD_OVERRIDES -> overrides().also { holdReply() }
             FlagBridgeContract.METHOD_APPLY -> apply(extras)
             FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
                 putBoolean(FlagBridgeContract.KEY_HANDLED, arg in handledSignals)
@@ -125,8 +140,15 @@ class FakeBridgeProvider : ContentProvider() {
         }
         val removals = extras?.getStringArray(FlagBridgeContract.KEY_REMOVE).orEmpty().map(::FlagKey)
         values = values + payload.values - removals.toSet()
-        notifyObservers()
+        if (notifiesOnApply) notifyObservers()
         return status(FlagBridgeContract.STATUS_OK)
+    }
+
+    private fun holdReply() {
+        val gate = replyGate ?: return
+        replyGate = null
+        replyReached?.countDown()
+        gate.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
     }
 
     private fun notifyObservers() {
