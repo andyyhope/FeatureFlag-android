@@ -73,9 +73,11 @@ public class FlagBridgeClient(
      * host's startup wait no longer pushes a slow handler past the caller's timeout. */
     public suspend fun send(signal: FlagSignal, timeout: Duration = this.timeout): Boolean {
         // Fixed before the first attempt: a retry after the host died has only what is left of the same budget.
-        val extras = Bundle().apply {
-            putLong(FlagBridgeContract.KEY_DEADLINE, SystemClock.elapsedRealtime() + timeout.inWholeMilliseconds)
-        }
+        val now = SystemClock.elapsedRealtime()
+        val budget = timeout.inWholeMilliseconds
+        // Saturated: Duration.INFINITE is Long.MAX_VALUE milliseconds, which would wrap into the past.
+        val deadline = if (budget > Long.MAX_VALUE - now) Long.MAX_VALUE else now + budget
+        val extras = Bundle().apply { putLong(FlagBridgeContract.KEY_DEADLINE, deadline) }
         return within(timeout) {
             try {
                 perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, extras) }

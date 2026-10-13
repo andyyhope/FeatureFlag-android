@@ -34,6 +34,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
@@ -352,6 +353,18 @@ class FlagBridgeClientTest {
 
         val deadline = bridge.extrasSeen.single()!!.getLong(FlagBridgeContract.KEY_DEADLINE)
         assertTrue(deadline in (before + timeout.inWholeMilliseconds)..(after + timeout.inWholeMilliseconds), "deadline $deadline")
+    }
+
+    @Test
+    fun anInfiniteTimeoutCarriesAFutureDeadline() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+
+        val before = SystemClock.elapsedRealtime()
+        assertTrue(FlagBridgeClient(context, host).send(TestSignal.Purge, Duration.INFINITE))
+
+        val deadline = bridge.extrasSeen.single()!!.getLong(FlagBridgeContract.KEY_DEADLINE)
+        assertTrue(deadline > before, "deadline $deadline")
     }
 
     @Test

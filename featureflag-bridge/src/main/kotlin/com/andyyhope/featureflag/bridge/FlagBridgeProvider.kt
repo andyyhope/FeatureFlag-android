@@ -85,9 +85,11 @@ public class FlagBridgeProvider : ContentProvider() {
             FlagBridgeContract.METHOD_OVERRIDES -> overrides(context)
             FlagBridgeContract.METHOD_APPLY -> apply(context, extras)
             FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
+                val timeout = deliveryTimeout(extras, enteredAt)
+                // No budget left: deliver would still queue the task, and a handler could run for a client told false.
                 putBoolean(
                     FlagBridgeContract.KEY_HANDLED,
-                    FlagSignalChannel.host.deliver(arg.orEmpty(), deliveryTimeout(extras, enteredAt)),
+                    timeout > Duration.ZERO && FlagSignalChannel.host.deliver(arg.orEmpty(), timeout),
                 )
             }
             else -> throw IllegalArgumentException("Unknown bridge method '$method'.")

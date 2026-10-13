@@ -349,6 +349,7 @@ class FlagBridgeProviderTest {
 
             assertFalse(handled)
             assertTrue(waited < 1_000, "waited $waited ms")
+            // Idled after the answer: nothing was queued for the handler to run from.
             assertEquals(0, purges.get())
         } finally {
             observation.close()
