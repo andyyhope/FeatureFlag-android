@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
 import com.andyyhope.featureflag.android.signals.FlagSignalChannel
 import com.andyyhope.featureflag.android.sources.SharedPreferencesSource
@@ -25,6 +26,7 @@ import java.io.FileNotFoundException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -64,7 +66,11 @@ public class FlagBridgeProvider : ContentProvider() {
         return true
     }
 
+    /** The clock a signal's deadline is read against; the same one the client reads. Tests replace it. */
+    internal var elapsedRealtime: () -> Long = SystemClock::elapsedRealtime
+
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
+        val enteredAt = elapsedRealtime()
         val context = checkNotNull(context)
         // The manifest permission already keeps other apps from opening the provider; this is defence in depth.
         context.enforceCallingPermission(
@@ -79,10 +85,31 @@ public class FlagBridgeProvider : ContentProvider() {
             FlagBridgeContract.METHOD_OVERRIDES -> overrides(context)
             FlagBridgeContract.METHOD_APPLY -> apply(context, extras)
             FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
-                putBoolean(FlagBridgeContract.KEY_HANDLED, FlagSignalChannel.host.deliver(arg.orEmpty()))
+                putBoolean(
+                    FlagBridgeContract.KEY_HANDLED,
+                    FlagSignalChannel.host.deliver(arg.orEmpty(), deliveryTimeout(extras, enteredAt)),
+                )
             }
             else -> throw IllegalArgumentException("Unknown bridge method '$method'.")
         }
+    }
+
+    /**
+     * How long a signal's handlers may take. A client states when it stops waiting, so the host
+     * gives it what is left less [REPLY_MARGIN] for the reply's trip back, clamped so a garbage
+     * deadline cannot hold a binder thread. An older client states nothing: it gets the default,
+     * counted from [enteredAt] so a startup wait is not added on top.
+     */
+    internal fun deliveryTimeout(extras: Bundle?, enteredAt: Long): Duration {
+        val now = elapsedRealtime()
+        if (extras == null || !extras.containsKey(FlagBridgeContract.KEY_DEADLINE)) {
+            return (FlagSignalChannel.DELIVERY_TIMEOUT - (now - enteredAt).milliseconds).coerceAtLeast(Duration.ZERO)
+        }
+        val deadline = extras.getLong(FlagBridgeContract.KEY_DEADLINE)
+        // Compared first so an absurdly early deadline cannot overflow the subtraction.
+        if (deadline <= now) return Duration.ZERO
+        val remaining = deadline - now - REPLY_MARGIN.inWholeMilliseconds
+        return remaining.coerceIn(0L, MAX_DELIVERY.inWholeMilliseconds).milliseconds
     }
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
@@ -199,6 +226,8 @@ public class FlagBridgeProvider : ContentProvider() {
 
     private companion object {
         val STARTUP_TIMEOUT = 10.seconds
+        val REPLY_MARGIN = 100.milliseconds
+        val MAX_DELIVERY = 30.seconds
         const val SCHEMA_PATH = "/schema"
         const val DECODE_ATTEMPTS = 2
     }

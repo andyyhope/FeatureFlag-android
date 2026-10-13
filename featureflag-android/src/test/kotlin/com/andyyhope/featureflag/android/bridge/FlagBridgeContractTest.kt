@@ -70,7 +70,7 @@ class FlagBridgeContractTest {
             ),
         )
         assertEquals(
-            listOf("protocol", "status", "message", "payload", "remove", "handled", "size"),
+            listOf("protocol", "status", "message", "payload", "remove", "handled", "size", "deadline"),
             listOf(
                 FlagBridgeContract.KEY_PROTOCOL,
                 FlagBridgeContract.KEY_STATUS,
@@ -79,6 +79,7 @@ class FlagBridgeContractTest {
                 FlagBridgeContract.KEY_REMOVE,
                 FlagBridgeContract.KEY_HANDLED,
                 FlagBridgeContract.KEY_SIZE,
+                FlagBridgeContract.KEY_DEADLINE,
             ),
         )
         assertEquals(

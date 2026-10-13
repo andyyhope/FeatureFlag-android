@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.DeadObjectException
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
+import android.os.SystemClock
 import com.andyyhope.featureflag.errors.FlagSchemaException
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.signals.FlagSignal
@@ -68,17 +69,24 @@ public class FlagBridgeClient(
 
     /** True when the host ran a handler for [signal]; false on no observer, timeout, or an unreachable host. Never throws.
      * A send that timed out or was cancelled may still be delivered, and a host that dies after running
-     * the handler may run it again on the retry. */
-    public suspend fun send(signal: FlagSignal, timeout: Duration = this.timeout): Boolean = within(timeout) {
-        try {
-            perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, null) }
-                ?.getBoolean(FlagBridgeContract.KEY_HANDLED) ?: false
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (ignored: Exception) {
-            false
+     * the handler may run it again on the retry. The host is given the caller's remaining budget, so a cold
+     * host's startup wait no longer pushes a slow handler past the caller's timeout. */
+    public suspend fun send(signal: FlagSignal, timeout: Duration = this.timeout): Boolean {
+        // Fixed before the first attempt: a retry after the host died has only what is left of the same budget.
+        val extras = Bundle().apply {
+            putLong(FlagBridgeContract.KEY_DEADLINE, SystemClock.elapsedRealtime() + timeout.inWholeMilliseconds)
         }
-    } ?: false
+        return within(timeout) {
+            try {
+                perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, extras) }
+                    ?.getBoolean(FlagBridgeContract.KEY_HANDLED) ?: false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (ignored: Exception) {
+                false
+            }
+        } ?: false
+    }
 
     /**
      * A live view of the host's companion overrides, validated against [schema]. Close it when done.

@@ -33,6 +33,7 @@ import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -40,7 +41,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [36])
@@ -317,6 +320,66 @@ class FlagBridgeProviderTest {
         }
     }
 
+    @Test
+    fun aSignalWaitsNoLongerThanItsDeadline() {
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { }
+        try {
+            startUp()
+            val deadline = realClock() + 300
+
+            val (handled, waited) = signalFromBackground(deadline)
+
+            // The task is queued behind a main looper that never runs, as a blocked handler would hold it.
+            assertFalse(handled)
+            assertTrue(waited in 100..2_000, "waited $waited ms")
+        } finally {
+            observation.close()
+        }
+    }
+
+    @Test
+    fun anExpiredDeadlineAnswersAtOnce() {
+        val purges = AtomicInteger()
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { purges.incrementAndGet() }
+        try {
+            startUp()
+
+            val (handled, waited) = signalFromBackground(realClock() - 5_000)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertFalse(handled)
+            assertTrue(waited < 1_000, "waited $waited ms")
+            assertEquals(0, purges.get())
+        } finally {
+            observation.close()
+        }
+    }
+
+    @Test
+    fun aSignalWithoutADeadlineKeepsTheDefaultMeasuredFromWhenItArrived() {
+        provider.elapsedRealtime = { 10_000L }
+
+        val timeout = provider.deliveryTimeout(null, enteredAt = 9_000L)
+
+        assertEquals(FlagSignalChannel.DELIVERY_TIMEOUT - 1.seconds, timeout)
+        assertEquals(Duration.ZERO, provider.deliveryTimeout(Bundle(), enteredAt = 1_000L))
+    }
+
+    @Test
+    fun aDeadlineLeavesTheReplyItsMargin() {
+        provider.elapsedRealtime = { 10_000L }
+
+        assertEquals(1_900.milliseconds, provider.deliveryTimeout(deadlineExtras(12_000L), enteredAt = 10_000L))
+    }
+
+    @Test
+    fun aFarDeadlineIsClamped() {
+        provider.elapsedRealtime = { 10_000L }
+
+        assertEquals(30.seconds, provider.deliveryTimeout(deadlineExtras(Long.MAX_VALUE), enteredAt = 10_000L))
+        assertEquals(Duration.ZERO, provider.deliveryTimeout(deadlineExtras(Long.MIN_VALUE), enteredAt = 10_000L))
+    }
+
     // Startup barrier
 
     @Test
@@ -405,6 +468,32 @@ class FlagBridgeProviderTest {
         cases = cases,
     )
 
+    private fun deadlineExtras(deadline: Long) = Bundle().apply { putLong(FlagBridgeContract.KEY_DEADLINE, deadline) }
+
+    private fun realClock(): Long = System.nanoTime() / NANOS_PER_MILLI
+
+    /** Lets the first call through the startup barrier, so later calls do not need the main looper. */
+    private fun startUp() {
+        provider.elapsedRealtime = ::realClock
+        val first = CountDownLatch(1)
+        thread { provider.call(FlagBridgeContract.METHOD_HELLO, null, null).also { first.countDown() } }
+        while (!first.await(10, TimeUnit.MILLISECONDS)) shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    /** Sends Purge with [deadline] from a binder-like thread; whether it was handled, and how long it took in ms. */
+    private fun signalFromBackground(deadline: Long): Pair<Boolean, Long> {
+        val answer = AtomicReference<Pair<Boolean, Long>>()
+        val done = CountDownLatch(1)
+        thread {
+            val started = realClock()
+            val reply = provider.call(FlagBridgeContract.METHOD_SIGNAL, "Purge", deadlineExtras(deadline))
+            answer.set(reply.getBoolean(FlagBridgeContract.KEY_HANDLED) to (realClock() - started))
+            done.countDown()
+        }
+        assertTrue(done.await(10, TimeUnit.SECONDS))
+        return answer.get()
+    }
+
     private fun applyExtras(values: Map<FlagKey, FlagValueBox>, remove: List<FlagKey> = emptyList()) = Bundle().apply {
         putByteArray(FlagBridgeContract.KEY_PAYLOAD, FlagPayload(values).jsonBytes())
         putStringArray(FlagBridgeContract.KEY_REMOVE, remove.map { it.rawValue }.toTypedArray())
@@ -425,5 +514,9 @@ class FlagBridgeProviderTest {
             },
         )
         return changes
+    }
+
+    private companion object {
+        const val NANOS_PER_MILLI = 1_000_000L
     }
 }

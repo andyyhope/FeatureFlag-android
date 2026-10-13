@@ -56,6 +56,13 @@ public object FlagBridgeContract {
     /** `Int`: the payload's size in bytes, sent with [STATUS_TOO_LARGE]. */
     public const val KEY_SIZE: String = "size"
 
+    /**
+     * `Long`: sent with [METHOD_SIGNAL], the moment the client stops waiting, in
+     * `SystemClock.elapsedRealtime()` milliseconds. Both processes read the same clock. A host
+     * that finds no deadline treats the client as an older one and applies its default wait.
+     */
+    public const val KEY_DEADLINE: String = "deadline"
+
     public const val STATUS_OK: String = "ok"
     public const val STATUS_NOT_PUBLISHED: String = "not-published"
     public const val STATUS_REJECTED: String = "rejected"

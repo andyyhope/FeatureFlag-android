@@ -8,6 +8,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PermissionInfo
 import android.content.pm.Signature
 import android.content.pm.SigningInfo
+import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.andyyhope.featureflag.errors.FlagSchemaException
@@ -337,6 +338,33 @@ class FlagBridgeClientTest {
         bridge.deaths.set(2)
 
         assertFalse(FlagBridgeClient(context, host).send(TestSignal.Purge))
+    }
+
+    @Test
+    fun aSignalCarriesItsDeadline() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+        val timeout = 7.seconds
+
+        val before = SystemClock.elapsedRealtime()
+        FlagBridgeClient(context, host).send(TestSignal.Purge, timeout)
+        val after = SystemClock.elapsedRealtime()
+
+        val deadline = bridge.extrasSeen.single()!!.getLong(FlagBridgeContract.KEY_DEADLINE)
+        assertTrue(deadline in (before + timeout.inWholeMilliseconds)..(after + timeout.inWholeMilliseconds), "deadline $deadline")
+    }
+
+    @Test
+    fun aRetriedSignalKeepsItsFirstDeadline() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+        bridge.deaths.set(1)
+
+        FlagBridgeClient(context, host).send(TestSignal.Purge, 7.seconds)
+
+        val deadlines = bridge.extrasSeen.map { it!!.getLong(FlagBridgeContract.KEY_DEADLINE) }
+        assertEquals(2, deadlines.size)
+        assertEquals(deadlines[0], deadlines[1])
     }
 
     // Helpers

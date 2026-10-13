@@ -27,12 +27,18 @@ class HostTestApplication : Application() {
         if (!processName().endsWith(HOST_PROCESS_SUFFIX)) return
         Thread.sleep(STARTUP_MILLIS)
         BridgeTestHost.schema.write(FlagBridgeContract.schemaDirectory(this))
-        val observed = listOf(BridgeTestSignal.Purge, BridgeTestSignal.Explode, BridgeTestSignal.DieOnce)
+        val observed = listOf(
+            BridgeTestSignal.Purge,
+            BridgeTestSignal.Explode,
+            BridgeTestSignal.DieOnce,
+            BridgeTestSignal.Slow,
+        )
         observation = FlagSignalChannel.host.observe(observed) { signal ->
             when (signal) {
                 BridgeTestSignal.Explode -> error("The Explode handler always fails.")
                 // Kills this process mid-call the first time, as a host that crashes or is reclaimed would.
                 BridgeTestSignal.DieOnce -> if (File(filesDir, DIE_ONCE_MARKER).createNewFile()) Process.killProcess(Process.myPid())
+                BridgeTestSignal.Slow -> Thread.sleep(SLOW_HANDLER_MILLIS)
                 else -> Unit
             }
         }
@@ -48,11 +54,14 @@ class HostTestApplication : Application() {
 
         /** A cold start long enough that the first call arrives while onCreate is still running (S6). */
         const val STARTUP_MILLIS = 1_000L
+
+        /** Longer than the provider's old fixed 4 s delivery timeout. */
+        const val SLOW_HANDLER_MILLIS = 4_500L
     }
 }
 
 /** The signals the host observes, plus one it does not. */
-enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Unobserved }
+enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Slow, Unobserved }
 
 /** The host's flags: one of every value type. */
 object BridgeTestHost {

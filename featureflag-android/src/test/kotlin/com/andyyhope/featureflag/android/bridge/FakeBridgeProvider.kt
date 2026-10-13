@@ -91,6 +91,9 @@ class FakeBridgeProvider : ContentProvider() {
     /** Every method called, in order, with its argument when it has one. */
     val calls = CopyOnWriteArrayList<String>()
 
+    /** For each entry of [calls], the extras it was called with. */
+    val extrasSeen = CopyOnWriteArrayList<Bundle?>()
+
     /** For each entry of [calls], whether it ran on the main thread. */
     val onMainThread = CopyOnWriteArrayList<Boolean>()
 
@@ -98,6 +101,7 @@ class FakeBridgeProvider : ContentProvider() {
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
         calls.add(if (arg == null) method else "$method $arg")
+        extrasSeen.add(extras?.let(::Bundle))
         onMainThread.add(Looper.getMainLooper().thread === Thread.currentThread())
         stall?.await(STALL_LIMIT_SECONDS, TimeUnit.SECONDS)
         refusal?.let { throw it }

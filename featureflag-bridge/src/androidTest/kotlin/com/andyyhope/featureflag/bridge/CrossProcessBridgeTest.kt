@@ -173,6 +173,16 @@ class CrossProcessBridgeTest {
         assertTrue(client.send(BridgeTestSignal.Purge))
     }
 
+    @Test
+    fun aColdHostRunsASlowSignalWithinTheCallersBudget() = runBlocking<Unit> {
+        // The handler takes 4.5 s, longer than the old fixed 4 s delivery timeout; the host now waits for
+        // what is left of the caller's 7 s after its 1 s cold start.
+        client.connect()
+        killHost()
+
+        assertTrue(client.send(BridgeTestSignal.Slow, timeout = 7.seconds))
+    }
+
     // Host death
 
     @Test
