@@ -16,6 +16,7 @@ import com.andyyhope.featureflag.ui.FlagCompanionScope
 import com.andyyhope.featureflag.ui.FlagCompanionTab
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
 import com.andyyhope.featureflag.ui.signals.FlagSignalsModel
+import kotlin.time.Duration
 import com.andyyhope.featureflag.ui.screens.FlagRow as StandardFlagRow
 
 /** Each tab's back stack, saved as a Bundle of encoded routes. */
@@ -42,9 +43,14 @@ internal fun TabContent(
     pop: () -> Unit,
     signalsModel: FlagSignalsModel,
     stateHolder: SaveableStateHolder,
+    signalTimeout: Duration,
 ) {
     BackHandler(enabled = routes.isNotEmpty(), onBack = pop)
-    if (tab is FlagCompanionTab.Signals) CancelPendingOnLeave(signalsModel)
+    if (tab is FlagCompanionTab.Signals) {
+        CancelPendingOnLeave(signalsModel)
+        SignalCountdownNotification(model = signalsModel, timeout = signalTimeout)
+        RequestNotificationPermissionOnDelay(signalsModel)
+    }
     val top = routes.lastOrNull()
     val slot = "${tab.id}/${routes.size}/${top?.let(FlagRouteCodec::encode).orEmpty()}"
     stateHolder.SaveableStateProvider(key = slot) {

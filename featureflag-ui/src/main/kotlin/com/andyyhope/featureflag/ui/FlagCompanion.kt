@@ -55,6 +55,7 @@ public fun FlagCompanion(
         signals = viewModel.signals,
         onRetry = session::retry,
         onRefresh = session::refresh,
+        signalTimeout = timeout,
         modifier = modifier,
     )
 }

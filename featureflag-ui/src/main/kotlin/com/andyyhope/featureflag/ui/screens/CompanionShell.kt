@@ -43,6 +43,8 @@ import com.andyyhope.featureflag.ui.editing.FlagEditingStore
 import com.andyyhope.featureflag.ui.icon
 import com.andyyhope.featureflag.ui.signals.FlagSignalsModel
 import kotlinx.coroutines.launch
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The companion for a given connection state, without the ViewModel: what FlagCompanion draws, and what
@@ -57,6 +59,7 @@ internal fun FlagCompanionContent(
     onRetry: () -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    signalTimeout: Duration = 5.seconds,
 ) {
     when (state) {
         FlagCompanionState.Connecting -> ConnectingScreen(modifier = modifier)
@@ -75,6 +78,7 @@ internal fun FlagCompanionContent(
                 tabs = tabs,
                 signals = signals,
                 onRefresh = onRefresh,
+                signalTimeout = signalTimeout,
                 modifier = modifier,
             )
         }
@@ -109,6 +113,7 @@ private fun FlagCompanionTabs(
     tabs: List<FlagCompanionTab>,
     signals: FlagSignalsModel,
     onRefresh: () -> Unit,
+    signalTimeout: Duration,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,6 +166,7 @@ private fun FlagCompanionTabs(
                         pop = { stacks[selected.id] = stacks[selected.id].orEmpty().dropLast(1) },
                         signalsModel = signals,
                         stateHolder = stateHolder,
+                        signalTimeout = signalTimeout,
                     )
                 }
                 if (failure != null) FailureBanner(message = failure.message.orEmpty(), onTryAgain = onRefresh)
