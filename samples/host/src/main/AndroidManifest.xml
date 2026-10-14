@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- featureflag-bridge merges in its signature permission and FlagBridgeProvider. -->
+    <application
+        android:name=".DemoApplication"
+        android:label="Demo"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+</manifest>
