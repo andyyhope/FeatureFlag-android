@@ -8,6 +8,11 @@ android {
 }
 
 dependencies {
+    // The on-device smoke test drives the shell with createComposeRule, which needs ComponentActivity
+    // in the debug manifest. The unit-test Compose dependencies come from A2.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     // The companion's runtime: the bridge client, Compose Material 3, and what the screens share
     // and draw with. Nothing else ships to a companion app; see the M3 overview's Global Constraints.
     api(project(":featureflag-android"))
