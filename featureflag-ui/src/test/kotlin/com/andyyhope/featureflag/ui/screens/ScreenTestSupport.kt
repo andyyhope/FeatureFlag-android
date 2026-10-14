@@ -4,7 +4,11 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.performScrollToNode
@@ -212,4 +216,15 @@ internal class FailingSource(private val failure: () -> RuntimeException) : Muta
     override fun setBox(key: FlagKey, box: FlagValueBox?) {
         throw failure()
     }
+}
+
+/**
+ * The editable field that shows [text] now. It is looked up by position, so the handle stays valid once the
+ * field's text changes (a handle matching on its text would no longer find it).
+ */
+internal fun ComposeContentTestRule.textFieldShowing(text: String): SemanticsNodeInteraction {
+    val index = onAllNodes(hasSetTextAction()).fetchSemanticsNodes()
+        .indexOfFirst { node -> node.config.getOrNull(SemanticsProperties.EditableText)?.text == text }
+    check(index >= 0) { "No text field shows '$text'." }
+    return onAllNodes(hasSetTextAction())[index]
 }
