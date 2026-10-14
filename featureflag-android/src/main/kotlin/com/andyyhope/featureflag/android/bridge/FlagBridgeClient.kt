@@ -28,7 +28,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -67,27 +69,70 @@ public class FlagBridgeClient(
         return within(timeout) { handshake() } ?: FlagBridgeConnection.Unresponsive(hostPackage, timeout)
     }
 
-    /** True when the host ran a handler for [signal]; false on no observer, timeout, or an unreachable host. Never throws.
-     * A send that timed out or was cancelled may still be delivered, and a host that dies after running
-     * the handler may run it again on the retry. The host is given the caller's remaining budget, so a cold
-     * host's startup wait no longer pushes a slow handler past the caller's timeout. */
-    public suspend fun send(signal: FlagSignal, timeout: Duration = this.timeout): Boolean {
+    /**
+     * Asks the host to deliver [signal] after [delay], and waits up to [delay] plus [timeout] for
+     * its answer: true when the host ran a handler; false on no observer, timeout, or an
+     * unreachable host. Never throws except [CancellationException].
+     *
+     * The host holds the delay, so a companion frozen in the background cannot stall it. A delayed
+     * send carries a fresh ticket; cancelling the calling coroutine while it waits asks the host,
+     * best effort, to withdraw that ticket, and then rethrows. A delay of zero sends exactly what an
+     * undelayed send always has.
+     *
+     * A send that timed out, or an undelayed one that was cancelled, may still be delivered, and a
+     * host that dies after running the handler may run it again on the retry. The host is given the
+     * caller's remaining budget, so a cold host's startup wait does not push a slow handler past it.
+     */
+    public suspend fun send(
+        signal: FlagSignal,
+        timeout: Duration = this.timeout,
+        delay: Duration = Duration.ZERO,
+    ): Boolean {
         // Fixed before the first attempt: a retry after the host died has only what is left of the same budget.
         val now = SystemClock.elapsedRealtime()
-        val budget = timeout.inWholeMilliseconds
+        val wait = delay.coerceAtLeast(Duration.ZERO).inWholeMilliseconds
+        // Duration arithmetic saturates, so an infinite timeout stays infinite.
+        val budget = timeout + wait.milliseconds
+        val budgetMillis = budget.inWholeMilliseconds
         // Saturated: Duration.INFINITE is Long.MAX_VALUE milliseconds, which would wrap into the past.
-        val deadline = if (budget > Long.MAX_VALUE - now) Long.MAX_VALUE else now + budget
-        val extras = Bundle().apply { putLong(FlagBridgeContract.KEY_DEADLINE, deadline) }
-        return within(timeout) {
-            try {
-                perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, extras) }
-                    ?.getBoolean(FlagBridgeContract.KEY_HANDLED) ?: false
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (ignored: Exception) {
-                false
+        val deadline = if (budgetMillis > Long.MAX_VALUE - now) Long.MAX_VALUE else now + budgetMillis
+        val ticket = if (wait > 0) UUID.randomUUID().toString() else null
+        val extras = Bundle().apply {
+            putLong(FlagBridgeContract.KEY_DEADLINE, deadline)
+            if (ticket != null) {
+                putLong(FlagBridgeContract.KEY_DELAY, wait)
+                putString(FlagBridgeContract.KEY_TICKET, ticket)
             }
-        } ?: false
+        }
+        try {
+            return within(budget) {
+                try {
+                    perform { client -> client.call(FlagBridgeContract.METHOD_SIGNAL, signal.name, extras) }
+                        ?.getBoolean(FlagBridgeContract.KEY_HANDLED) ?: false
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (ignored: Exception) {
+                    false
+                }
+            } ?: false
+        } catch (cancelled: CancellationException) {
+            if (ticket != null) withdraw(ticket)
+            throw cancelled
+        }
+    }
+
+    /** Asks the host to drop the delayed signal [ticket] names. Best effort: it cannot be cancelled, and never throws. */
+    private suspend fun withdraw(ticket: String) {
+        withContext(NonCancellable) {
+            within(CANCEL_TIMEOUT) {
+                try {
+                    perform { client -> client.call(FlagBridgeContract.METHOD_CANCEL, ticket, null) }
+                } catch (ignored: Exception) {
+                    // The host is gone or refused: either way, nothing more can be done for this send.
+                }
+                Unit
+            }
+        }
     }
 
     /**
@@ -213,6 +258,9 @@ public class FlagBridgeClient(
 
     private companion object {
         const val ATTEMPTS = 2
+
+        /** How long a withdrawal may take; the coroutine that asked for it is already cancelled. */
+        val CANCEL_TIMEOUT = 2.seconds
 
         @Suppress("DEPRECATION") // getPackageInfo(String, PackageInfoFlags) needs API 33.
         fun packageInfo(packageManager: PackageManager, packageName: String, flags: Int): PackageInfo? = try {

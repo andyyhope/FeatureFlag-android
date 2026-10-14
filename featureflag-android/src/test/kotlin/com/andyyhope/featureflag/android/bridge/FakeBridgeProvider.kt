@@ -15,6 +15,7 @@ import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import java.io.File
 import java.io.FileNotFoundException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -81,6 +82,13 @@ class FakeBridgeProvider : ContentProvider() {
     @Volatile
     var applyReached: CountDownLatch? = null
 
+    /** Opened when a delayed signal starts its wait. */
+    @Volatile
+    var delayReached: CountDownLatch? = null
+
+    /** Each delayed signal's cancellation, by ticket, opened by a cancel call. */
+    private val cancellations = ConcurrentHashMap<String, CountDownLatch>()
+
     private var heldReplyGate: CountDownLatch? = null
     private var heldApplyGate: CountDownLatch? = null
 
@@ -122,7 +130,11 @@ class FakeBridgeProvider : ContentProvider() {
             FlagBridgeContract.METHOD_OVERRIDES -> overrides().also { holdReply() }
             FlagBridgeContract.METHOD_APPLY -> apply(extras)
             FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
-                putBoolean(FlagBridgeContract.KEY_HANDLED, arg in handledSignals)
+                putBoolean(FlagBridgeContract.KEY_HANDLED, waitOutDelay(extras) && arg in handledSignals)
+            }
+            FlagBridgeContract.METHOD_CANCEL -> {
+                cancellation(arg.orEmpty()).countDown()
+                status(FlagBridgeContract.STATUS_OK)
             }
             else -> throw IllegalArgumentException("Unknown bridge method '$method'.")
         }
@@ -137,6 +149,20 @@ class FakeBridgeProvider : ContentProvider() {
         }
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }
+
+    /**
+     * Waits out a delayed signal's [FlagBridgeContract.KEY_DELAY] in real time, as the host does;
+     * false when a cancel for its ticket ends the wait first.
+     */
+    private fun waitOutDelay(extras: Bundle?): Boolean {
+        val delay = extras?.getLong(FlagBridgeContract.KEY_DELAY) ?: 0L
+        if (delay <= 0) return true
+        val cancelled = cancellation(extras?.getString(FlagBridgeContract.KEY_TICKET).orEmpty())
+        delayReached?.countDown()
+        return !cancelled.await(delay, TimeUnit.MILLISECONDS)
+    }
+
+    private fun cancellation(ticket: String): CountDownLatch = cancellations.computeIfAbsent(ticket) { CountDownLatch(1) }
 
     /** Changes the host's overrides as the host's own code would, and tells observers. */
     fun hostWrites(values: Map<FlagKey, FlagValueBox>) {
