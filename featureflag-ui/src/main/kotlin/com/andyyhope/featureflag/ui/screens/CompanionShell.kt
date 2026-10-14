@@ -122,6 +122,8 @@ private fun FlagCompanionTabs(
     val selected = tabs.firstOrNull { it.id == selectedId } ?: tabs.first()
     val stacks = rememberSaveable(saver = RouteStacksSaver) { mutableStateMapOf<String, List<FlagRoute>>() }
     val stateHolder = rememberSaveableStateHolder()
+    // Outside the tab, so leaving Signals does not forget that the permission was asked for.
+    val hasAskedForNotifications = rememberSaveable { mutableStateOf(false) }
     ProvideFlagWriter(
         onFailure = { error ->
             shellScope.launch {
@@ -167,6 +169,7 @@ private fun FlagCompanionTabs(
                         signalsModel = signals,
                         stateHolder = stateHolder,
                         signalTimeout = signalTimeout,
+                        hasAskedForNotifications = hasAskedForNotifications,
                     )
                 }
                 if (failure != null) FailureBanner(message = failure.message.orEmpty(), onTryAgain = onRefresh)

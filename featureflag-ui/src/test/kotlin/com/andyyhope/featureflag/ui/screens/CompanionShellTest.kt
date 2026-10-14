@@ -1,5 +1,6 @@
 package com.andyyhope.featureflag.ui.screens
 
+import android.Manifest
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -48,9 +49,11 @@ import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 
@@ -316,6 +319,24 @@ class CompanionShellTest {
         tab("Signals").performClick()
         composeRule.onNodeWithContentDescription("Sending in 3 seconds. Tap to cancel.", useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithText("Recent").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePermissionIsAskedOnceAcrossTabSwitches() {
+        show(ready(), listOf(signals, FlagCompanionTab.Overrides))
+        val activity = shadowOf(composeRule.activity)
+
+        composeRule.onNodeWithText("3s").performClick()
+        composeRule.waitForIdle()
+        val request = checkNotNull(activity.lastRequestedPermission)
+        assertEquals(listOf(Manifest.permission.POST_NOTIFICATIONS), request.requestedPermissions.toList())
+
+        // A second request would replace the recorded one.
+        tab("Overrides").performClick()
+        tab("Signals").performClick()
+        composeRule.waitForIdle()
+
+        assertSame(request, activity.lastRequestedPermission)
     }
 
     @Test

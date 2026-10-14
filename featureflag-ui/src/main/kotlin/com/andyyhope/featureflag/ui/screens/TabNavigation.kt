@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
@@ -44,12 +45,13 @@ internal fun TabContent(
     signalsModel: FlagSignalsModel,
     stateHolder: SaveableStateHolder,
     signalTimeout: Duration,
+    hasAskedForNotifications: MutableState<Boolean>,
 ) {
     BackHandler(enabled = routes.isNotEmpty(), onBack = pop)
     if (tab is FlagCompanionTab.Signals) {
         CancelPendingOnLeave(signalsModel)
         SignalCountdownNotification(model = signalsModel, timeout = signalTimeout)
-        RequestNotificationPermissionOnDelay(signalsModel)
+        RequestNotificationPermissionOnDelay(signalsModel, hasAskedForNotifications)
     }
     val top = routes.lastOrNull()
     val slot = "${tab.id}/${routes.size}/${top?.let(FlagRouteCodec::encode).orEmpty()}"
