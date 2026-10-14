@@ -8,9 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
@@ -24,6 +26,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -211,6 +215,27 @@ class CompanionShellTest {
         composeRule.onNodeWithText("Try again").performClick()
 
         assertEquals(1, retries)
+    }
+
+    @Test
+    fun aStatusScreenIsReadableUnderADarkTheme() {
+        val dark = darkColorScheme()
+        composeRule.setContent {
+            MaterialTheme(colorScheme = dark) {
+                FlagCompanionContent(
+                    state = FlagCompanionState.Unavailable("Run the host app."),
+                    tabs = FlagCompanionTab.Defaults,
+                    signals = model,
+                    onRetry = {},
+                    onRefresh = {},
+                )
+            }
+        }
+
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeRule.onNodeWithText("No flags yet").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+
+        assertEquals(dark.onBackground, layouts.single().layoutInput.style.color)
     }
 
     @Test
