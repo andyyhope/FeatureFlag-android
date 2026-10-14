@@ -27,6 +27,7 @@ import java.io.File
 import java.util.Base64
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @RunWith(AndroidJUnit4::class)
@@ -45,6 +46,13 @@ class QrSheetTest {
 
     private fun show(store: FlagEditingStore) {
         composeRule.setFlagContent { QrSheet(store = store, onDismiss = { dismissals++ }) }
+    }
+
+    /** A file where the PNGs' directory should be, so writing one fails. */
+    private fun blockTheImageDirectory() {
+        val directory = File(context.cacheDir, "featureflag")
+        directory.deleteRecursively()
+        directory.writeText("not a directory")
     }
 
     private fun overridden() = testStore(ScreenFixtures.companion, mapOf(FlagKey("new-onboarding") to FlagValueBox.Bool(true)))
@@ -111,6 +119,29 @@ class QrSheetTest {
         val stream = checkNotNull(IntentCompat.getParcelableExtra(send, Intent.EXTRA_STREAM, Uri::class.java))
         assertEquals("${context.packageName}.featureflag.files", stream.authority)
         assertTrue(send.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+    }
+
+    @Test
+    fun anImageThatCannotBeCopiedSaysWhyRatherThanCrashing() {
+        blockTheImageDirectory()
+        show(overridden())
+
+        composeRule.onNodeWithText("Copy image").performClick()
+
+        composeRule.onNodeWithText("Could not write the image:", substring = true).assertExists()
+        composeRule.onNodeWithText("Image copied").assertDoesNotExist()
+        composeRule.onNodeWithText("Copy image").assertExists()
+    }
+
+    @Test
+    fun anImageThatCannotBeSavedSaysWhyRatherThanCrashing() {
+        blockTheImageDirectory()
+        show(overridden())
+
+        composeRule.onNodeWithText("Save").performClick()
+
+        composeRule.onNodeWithText("Could not write the image:", substring = true).assertExists()
+        assertNull(shadowOf(context).nextStartedActivity)
     }
 
     @Test

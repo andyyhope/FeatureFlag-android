@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +45,7 @@ import com.andyyhope.featureflag.ui.FlagStrings
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
 import com.andyyhope.featureflag.ui.share.FlagClipboard
 import com.andyyhope.featureflag.ui.share.FlagQrImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /**
@@ -61,6 +63,17 @@ internal fun QrSheet(store: FlagEditingStore, onDismiss: () -> Unit) {
     }
     val copyableCode = remember(revision) { store.copyableQrCode }
     val fileName = "feature-flags-$count-overrides"
+    var writeFailure by remember { mutableStateOf<String?>(null) }
+
+    /** The PNG Copy image and Save hand over, or null once the sheet says why it could not be written. */
+    fun pngUri(bitmap: Bitmap): Uri? {
+        val written = runCatching { FlagQrImage.uri(context, FlagQrImage.writePng(context, bitmap, fileName)) }
+        val failure = written.exceptionOrNull()
+        if (failure is CancellationException || (failure != null && failure !is Exception)) throw failure
+        writeFailure = failure?.let { FlagStrings.couldNotWriteImage(it.message ?: it.toString()) }
+        return written.getOrNull()
+    }
+
     FlagSheet(
         title = FlagStrings.SCAN_TO_COPY,
         onDismiss = onDismiss,
@@ -88,13 +101,18 @@ internal fun QrSheet(store: FlagEditingStore, onDismiss: () -> Unit) {
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     FeedbackButton(label = FlagStrings.COPY_IMAGE, doneLabel = FlagStrings.IMAGE_COPIED, icon = FlagIcons.ContentCopy) {
-                        FlagClipboard.copyImage(context, FlagQrImage.uri(context, FlagQrImage.writePng(context, image, fileName)))
+                        val uri = pngUri(image)
+                        if (uri != null) FlagClipboard.copyImage(context, uri)
+                        uri != null
                     }
-                    TextButton(onClick = { sharePng(context, FlagQrImage.uri(context, FlagQrImage.writePng(context, image, fileName))) }) {
+                    TextButton(onClick = { pngUri(image)?.let { uri -> sharePng(context, uri) } }) {
                         Icon(imageVector = FlagIcons.Download, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = FlagStrings.SAVE)
                     }
+                }
+                writeFailure?.let { message ->
+                    Text(text = message, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             } else {
                 Text(
@@ -107,6 +125,7 @@ internal fun QrSheet(store: FlagEditingStore, onDismiss: () -> Unit) {
                 // No camera, no second device: paste the text into Import instead.
                 FeedbackButton(label = FlagStrings.COPY_CODE, doneLabel = FlagStrings.CODE_COPIED, icon = FlagIcons.ContentCopy) {
                     FlagClipboard.copy(context, copyableCode)
+                    true
                 }
             }
             Text(
@@ -118,9 +137,12 @@ internal fun QrSheet(store: FlagEditingStore, onDismiss: () -> Unit) {
     }
 }
 
-/** A text button that says it worked ("Image copied", "Code copied") for [COPIED_FEEDBACK_MILLIS]. */
+/**
+ * A text button that says it worked ("Image copied", "Code copied") for [COPIED_FEEDBACK_MILLIS].
+ * [onClick] returns whether it did: one that failed shows no feedback.
+ */
 @Composable
-private fun FeedbackButton(label: String, doneLabel: String, icon: ImageVector, onClick: () -> Unit) {
+private fun FeedbackButton(label: String, doneLabel: String, icon: ImageVector, onClick: () -> Boolean) {
     var isDone by remember { mutableStateOf(false) }
     LaunchedEffect(isDone) {
         if (isDone) {
@@ -129,10 +151,7 @@ private fun FeedbackButton(label: String, doneLabel: String, icon: ImageVector, 
         }
     }
     TextButton(
-        onClick = {
-            onClick()
-            isDone = true
-        },
+        onClick = { isDone = onClick() },
     ) {
         Icon(imageVector = if (isDone) Icons.Filled.Check else icon, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))

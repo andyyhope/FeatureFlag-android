@@ -153,6 +153,9 @@ internal object FlagStrings {
     const val CODE_COPIED = "Code copied"
     const val COULD_NOT_RENDER = "Could not render the code."
 
+    /** Android: the PNG that Copy image and Save hand over could not be written. */
+    fun couldNotWriteImage(reason: String): String = "Could not write the image: $reason"
+
     /** iOS has no singular here. */
     fun qrCodeDescription(count: Int): String = "QR code containing $count overrides"
 
