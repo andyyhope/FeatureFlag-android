@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.kotlin.gradle.plugin)
     implementation(libs.android.gradle.plugin)
     implementation(libs.detekt.gradle.plugin)
+    implementation(libs.compose.compiler.gradle.plugin)
 }
 
 gradlePlugin {
@@ -27,6 +28,10 @@ gradlePlugin {
         register("fixtures") {
             id = "featureflag.fixtures"
             implementationClass = "FixturesConventionPlugin"
+        }
+        register("compose") {
+            id = "featureflag.compose"
+            implementationClass = "ComposeConventionPlugin"
         }
     }
 }
