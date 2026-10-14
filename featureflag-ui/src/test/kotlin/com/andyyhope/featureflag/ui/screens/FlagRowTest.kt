@@ -185,6 +185,49 @@ class FlagRowTest {
     }
 
     @Test
+    fun aResetWhileFocusedIsNotUndoneByLeavingTheField() {
+        val store = testStore(ScreenFixtures.companion, mapOf(FlagKey("max-items") to FlagValueBox.Int(3)))
+        show(store, "max-items")
+        val entry = store.requireEntry("max-items")
+
+        composeRule.onNode(hasSetTextAction()).performClick()
+        composeRule.onNodeWithContentDescription("Reset to the app's default").performClick()
+        composeRule.runOnIdle { focusManager.clearFocus() }
+        composeRule.waitForIdle()
+
+        assertFalse(store.isOverridden(entry))
+        assertEquals(FlagValueBox.Int(10), store.value(entry))
+        composeRule.onNode(hasSetTextAction()).assertTextEquals("10")
+    }
+
+    @Test
+    fun anOutsideChangeWhileFocusedIsNotUndoneByLeavingTheField() {
+        val store = testStore(ScreenFixtures.companion)
+        show(store, "max-items")
+        val entry = store.requireEntry("max-items")
+
+        composeRule.onNode(hasSetTextAction()).performClick()
+        runBlocking { store.setValue(entry, FlagValueBox.Int(99)) }
+        composeRule.runOnIdle { focusManager.clearFocus() }
+        composeRule.waitForIdle()
+
+        assertEquals(FlagValueBox.Int(99), store.value(entry))
+        composeRule.onNode(hasSetTextAction()).assertTextEquals("99")
+    }
+
+    @Test
+    fun committingADraftEqualToTheValueInEffectWritesNothing() {
+        val store = testStore(ScreenFixtures.companion)
+        show(store, "max-items")
+
+        composeRule.onNode(hasSetTextAction()).performClick()
+        composeRule.runOnIdle { focusManager.clearFocus() }
+        composeRule.waitForIdle()
+
+        assertFalse(store.isOverridden(store.requireEntry("max-items")))
+    }
+
+    @Test
     fun aFailedWriteRevertsTheFieldAndIsReported() {
         val source = FailingSource { FlagBridgeException.Rejected("the host is read-only") }
         val store = FlagEditingStore(ScreenFixtures.companion, source, writeDispatcher = Dispatchers.Main.immediate)

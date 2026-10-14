@@ -47,10 +47,11 @@ internal const val COPIED_FEEDBACK_MILLIS: Long = 1_400L
 
 /**
  * A text editor for one value that commits only text that parses (iOS FlagTextField).
- * - It keeps a local draft, and commits on IME Done and when focus leaves. A draft equal to [value] commits nothing.
+ * - It keeps a local draft, and commits on IME Done and when focus leaves. A draft nobody typed in, or one equal
+ *   to [value], commits nothing: the field shows [value] again, so leaving it never undoes a reset or an outside change.
  * - [onCommit] returns false to refuse: the draft snaps back to [value], and a warning shows until a later commit succeeds.
  * - While focused, a change to [value] from elsewhere does not overwrite the draft; once unfocused, it does.
- * - Bumping [revertKey] (after a failed write) puts [value] back into an unfocused field.
+ * - Bumping [revertKey] (after a failed write) puts [value] back into the field, even if it is focused again.
  * - [multiline] draws a wrapping code block with a copy button, for data and JSON. It has no Done; only blur commits.
  */
 @Composable
@@ -63,6 +64,8 @@ internal fun FlagTextField(
     revertKey: Int = 0,
 ) {
     var draft by remember { mutableStateOf(value) }
+    // Whether the draft holds typing that has not been committed. A draft nobody typed in is never written back.
+    var isEdited by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
     var isRejected by remember { mutableStateOf(false) }
     var refusals by remember { mutableIntStateOf(0) }
@@ -72,16 +75,23 @@ internal fun FlagTextField(
 
     // An outside change (another process, a reset, a failed write) reaches the field only while nobody is typing.
     LaunchedEffect(value) {
-        if (!isFocused) draft = value
+        if (!isFocused) {
+            draft = value
+            isEdited = false
+        }
     }
 
     // A refused edit or a failed write puts the value back, even if focus has already returned to the field.
     LaunchedEffect(revertKey, refusals) {
         draft = latestValue
+        isEdited = false
     }
 
     fun commit() {
-        if (draft == latestValue) {
+        val hasEdit = isEdited && draft != latestValue
+        isEdited = false
+        if (!hasEdit) {
+            draft = latestValue
             isRejected = false
             return
         }
@@ -103,7 +113,10 @@ internal fun FlagTextField(
     if (multiline) {
         FlagCodeBlock(
             draft = draft,
-            onDraftChange = { draft = it },
+            onDraftChange = {
+                draft = it
+                isEdited = true
+            },
             isRejected = isRejected,
             textStyle = textStyle,
             keyboardOptions = keyboardOptions,
@@ -113,7 +126,10 @@ internal fun FlagTextField(
     } else {
         OutlinedTextField(
             value = draft,
-            onValueChange = { draft = it },
+            onValueChange = {
+                draft = it
+                isEdited = true
+            },
             modifier = modifier
                 .fillMaxWidth()
                 .then(focusTracking),
