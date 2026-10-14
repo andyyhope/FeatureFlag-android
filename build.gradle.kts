@@ -31,8 +31,9 @@ dependencies {
 // The published API, frozen in featureflag-*/api/*.api. Update it on purpose, with the change that needs it:
 // ./gradlew apiDump releaseApiDump
 apiValidation {
-    // Nothing published: the BOM has no classes, and the samples are apps and a sample-only library.
-    ignoredProjects.addAll(listOf("featureflag-bom", "signals", "host", "companion"))
+    // Nothing published: the BOM has no classes, the samples are apps and a sample-only library, and
+    // docs-samples is the docs' tests.
+    ignoredProjects.addAll(listOf("featureflag-bom", "docs-samples", "signals", "host", "companion"))
     // Compose's holders for lambdas without captures: public in bytecode, internal in Kotlin, and renamed
     // whenever a screen's lambdas change.
     ignoredClasses.addAll(
