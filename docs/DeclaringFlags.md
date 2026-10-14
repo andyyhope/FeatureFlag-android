@@ -195,7 +195,7 @@ val showsNewOnboarding = OnboardingPreviewFlagsSpec.flagDefaults.newOnboarding /
 ```
 
 When a test needs a specific value rather than the default, put a `SnapshotSource` on top
-of a pole instead — see Sources and precedence.
+of a pole instead — see [Sources and precedence](SourcesAndPrecedence.md).
 
 ### Public containers
 

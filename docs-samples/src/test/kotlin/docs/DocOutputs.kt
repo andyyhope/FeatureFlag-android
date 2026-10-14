@@ -1,6 +1,7 @@
 package docs
 
 import docs.declaringflags.duplicateKeyMessage
+import docs.exportingandimporting.exportedDocument
 import docs.recordflags.duplicateRecordKeyProblem
 import docs.recordflags.endpointsPayload
 import docs.recordflags.nestedRecord
@@ -11,6 +12,7 @@ import docs.remoteoverrides.arrayPathPayload
 import docs.remoteoverrides.experimentsPayload
 import docs.remoteoverrides.onboardingPayload
 import docs.remoteoverrides.rejectionReport
+import docs.sharingwithacompanionapp.publishedSchema
 import docs.validatingaconfig.checkoutDefaultsReport
 import docs.validatingaconfig.draftAuditReport
 import docs.validatingaconfig.stagingDefaultsReport
@@ -39,5 +41,9 @@ object DocOutputs {
         "validating-audit-report" to ::draftAuditReport,
         "validating-defaults-report" to ::stagingDefaultsReport,
         "validating-record-defaults-report" to ::checkoutDefaultsReport,
+        // SharingWithACompanionApp.md
+        "sharing-schema" to ::publishedSchema,
+        // ExportingAndImporting.md
+        "exporting-json" to ::exportedDocument,
     )
 }

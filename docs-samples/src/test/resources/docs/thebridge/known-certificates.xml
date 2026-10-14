@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The host's res/values/featureflag.xml for known-signer-manifest.xml. -->
+<resources>
+    <!-- region snippet: bridge-known-certs -->
+    <string-array name="featureflag_companion_certificates">
+        <item>3A1F8C0E52B7D9461C2E0F9A7B83D5C6E1F04A2B9C7D3E5F6081A2B3C4D5E6F7</item>
+    </string-array>
+    <!-- endregion -->
+</resources>

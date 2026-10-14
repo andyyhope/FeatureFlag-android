@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A companion's manifest, for a host whose application id is com.example.app. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- region snippet: bridge-companion-permission -->
+    <uses-permission android:name="com.example.app.permission.FEATURE_FLAG_BRIDGE" />
+    <!-- endregion -->
+
+    <application android:label="Flags" />
+</manifest>
