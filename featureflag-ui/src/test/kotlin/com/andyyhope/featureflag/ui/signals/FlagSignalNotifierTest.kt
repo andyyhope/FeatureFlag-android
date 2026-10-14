@@ -16,6 +16,7 @@ import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -34,7 +35,17 @@ class FlagSignalNotifierTest {
 
     private fun notifier(now: Instant = start) = FlagSignalNotifier(context) { now }
 
-    private fun posted(): Notification = shadowOf(manager).allNotifications.single()
+    private fun posted(): Notification =
+        checkNotNull(shadowOf(manager).getNotification(FlagSignalNotifier.NOTIFICATION_TAG, FlagSignalNotifier.NOTIFICATION_ID)) {
+            "No countdown is posted under the library's tag."
+        }
+
+    /** One of the companion app's own notifications, under the same id but no tag. */
+    private fun postTheAppsOwnNotification(): Notification {
+        val own = Notification.Builder(context, FlagSignalNotifier.CHANNEL_ID).setContentTitle("The app's own").build()
+        manager.notify(FlagSignalNotifier.NOTIFICATION_ID, own)
+        return own
+    }
 
     @Before
     fun grant() {
@@ -111,6 +122,21 @@ class FlagSignalNotifierTest {
         notifier.cancel()
 
         assertTrue(shadowOf(manager).allNotifications.isEmpty())
+    }
+
+    @Test
+    fun theCountdownNeitherReplacesNorCancelsTheAppsOwnNotification() {
+        val own = postTheAppsOwnNotification()
+        val notifier = notifier()
+
+        notifier.show(TestSignal.Refetch, countdown, timeout = 5.seconds)
+
+        assertSame(own, shadowOf(manager).getNotification(FlagSignalNotifier.NOTIFICATION_ID))
+        assertEquals("Re-fetch remote configuration", posted().extras.getCharSequence(Notification.EXTRA_TITLE)?.toString())
+
+        notifier.cancel()
+
+        assertEquals(listOf(own), shadowOf(manager).allNotifications)
     }
 
     @Test

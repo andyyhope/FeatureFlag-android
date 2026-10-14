@@ -2,6 +2,7 @@ package com.andyyhope.featureflag.ui
 
 import android.app.NotificationManager
 import android.os.ParcelFileDescriptor
+import android.service.notification.StatusBarNotification
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.andyyhope.featureflag.signals.FlagSignal
@@ -37,7 +38,7 @@ class FlagSignalNotifierDeviceTest {
 
         notifier.show(DeviceSignal.Refetch, FlagSignalCountdown(Instant.now(), 10.seconds), timeout = 5.seconds)
 
-        assertTrue(waitFor { manager.activeNotifications.any { it.id == FlagSignalNotifier.NOTIFICATION_ID } })
+        assertTrue(waitFor { manager.activeNotifications.any { it.isTheCountdown() } })
         shell("cmd statusbar expand-notifications")
         Thread.sleep(SHADE_SETTLE_MILLIS)
         shell("screencap -p $DIRECTORY/7-notification.png")
@@ -45,9 +46,12 @@ class FlagSignalNotifierDeviceTest {
         assertTrue("7-notification.png" in shell("ls $DIRECTORY"), "screencap wrote no 7-notification.png")
 
         notifier.cancel()
-        assertTrue(waitFor { manager.activeNotifications.none { it.id == FlagSignalNotifier.NOTIFICATION_ID } })
-        assertFalse(manager.activeNotifications.any { it.id == FlagSignalNotifier.NOTIFICATION_ID })
+        assertTrue(waitFor { manager.activeNotifications.none { it.isTheCountdown() } })
+        assertFalse(manager.activeNotifications.any { it.isTheCountdown() })
     }
+
+    private fun StatusBarNotification.isTheCountdown(): Boolean =
+        tag == FlagSignalNotifier.NOTIFICATION_TAG && id == FlagSignalNotifier.NOTIFICATION_ID
 
     private fun waitFor(condition: () -> Boolean): Boolean {
         repeat(POLLS) {

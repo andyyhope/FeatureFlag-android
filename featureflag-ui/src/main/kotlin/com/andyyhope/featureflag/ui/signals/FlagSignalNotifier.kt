@@ -68,11 +68,11 @@ internal class FlagSignalNotifier(
         } else {
             builder.setProgress(PROGRESS_MAX, progress, false)
         }
-        manager.notify(NOTIFICATION_ID, builder.build())
+        manager.notify(NOTIFICATION_TAG, NOTIFICATION_ID, builder.build())
     }
 
     fun cancel() {
-        manager.cancel(NOTIFICATION_ID)
+        manager.cancel(NOTIFICATION_TAG, NOTIFICATION_ID)
     }
 
     private fun canPost(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -87,6 +87,9 @@ internal class FlagSignalNotifier(
     companion object {
         const val CHANNEL_ID = "featureflag.signal-countdown"
         const val NOTIFICATION_ID = 0x0F1A
+
+        /** Posted under a tag, so the id cannot collide with one of the companion app's own notifications. */
+        const val NOTIFICATION_TAG = "com.andyyhope.featureflag.signal"
         private const val PROGRESS_MAX = 1_000
 
         /** Notification.EXTRA_REQUEST_PROMOTED_ONGOING, which setRequestPromotedOngoing sets; both are API 36.1. */
