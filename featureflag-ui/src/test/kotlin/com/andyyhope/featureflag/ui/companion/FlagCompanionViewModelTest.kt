@@ -13,6 +13,7 @@ import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.ui.editing.CompanionSchemas
+import com.andyyhope.featureflag.ui.signals.FlagSignalDelay
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueType
 import kotlinx.coroutines.runBlocking
@@ -86,6 +87,14 @@ class FlagCompanionViewModelTest {
 
         assertFalse(viewModel.send(Ping.Ping, 1.seconds))
         assertFalse(viewModel.send(Ping.Ping, Duration.ZERO))
+    }
+
+    @Test
+    fun theViewModelOwnsOneSignalsModel() {
+        val viewModel = FlagCompanionViewModel(context, host, 1.seconds)
+
+        assertSame(viewModel.signals, viewModel.signals)
+        assertEquals(FlagSignalDelay.Instant, viewModel.signals.delay.value)
     }
 
     private enum class Ping : FlagSignal { Ping }

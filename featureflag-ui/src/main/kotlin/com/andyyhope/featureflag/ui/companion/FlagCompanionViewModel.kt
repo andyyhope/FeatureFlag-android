@@ -10,6 +10,7 @@ import com.andyyhope.featureflag.android.bridge.FlagBridgeClient
 import com.andyyhope.featureflag.android.bridge.FlagBridgeSource
 import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.sources.MutableFlagValueSource
+import com.andyyhope.featureflag.ui.signals.FlagSignalsModel
 import kotlin.time.Duration
 
 /**
@@ -40,6 +41,9 @@ internal class FlagCompanionViewModel(
      * signals model sends with. Cancelling the caller withdraws a delayed signal from the host.
      */
     suspend fun send(signal: FlagSignal, delay: Duration): Boolean = client.send(signal, delay = delay)
+
+    /** Owned here so a pending send and Recent survive configuration changes. */
+    internal val signals: FlagSignalsModel = FlagSignalsModel(send = ::send, scope = viewModelScope)
 
     override fun onCleared() {
         session.close()
