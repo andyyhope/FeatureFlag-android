@@ -72,6 +72,21 @@ class FlagSignalNotifierTest {
     }
 
     @Test
+    fun aRepostHalfwayThroughKeepsTheOriginalDeadline() {
+        notifier(now = start.plusMillis(2_500)).show(TestSignal.Refetch, countdown, timeout = 5.seconds)
+
+        // end (start + 5 s) + timeout (5 s) - now (start + 2.5 s)
+        assertEquals(7_500L, posted().timeoutAfter)
+    }
+
+    @Test
+    fun aRepostPastTheDeadlineTimesOutAtOnce() {
+        notifier(now = start.plusSeconds(30)).show(TestSignal.Refetch, countdown, timeout = 5.seconds)
+
+        assertEquals(1L, posted().timeoutAfter)
+    }
+
+    @Test
     fun theBarFollowsTheClock() {
         notifier(now = start.plusMillis(2_500)).show(TestSignal.Refetch, countdown, timeout = 5.seconds)
 

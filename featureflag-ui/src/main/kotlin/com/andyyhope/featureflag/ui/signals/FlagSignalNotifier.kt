@@ -15,14 +15,16 @@ import com.andyyhope.featureflag.ui.R
 import java.time.Instant
 import kotlin.math.roundToInt
 import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * The countdown for a delayed signal, shown outside the app while someone switches to the host (the
  * stand-in for iOS's Live Activity).
  * - API 36 and later: a ProgressStyle notification that asks to be promoted to a Live Update.
  * - Earlier: a chronometer counting down to the delivery, over a progress bar.
- * It times out after delay + timeout, so a frozen companion cannot leave it behind. Without the
- * notification permission it posts nothing, and the send goes ahead regardless.
+ * It times out once the delay and the timeout have passed since the tap, however often it is reposted, so
+ * a frozen companion cannot leave it behind. Without the notification permission it posts nothing, and the
+ * send goes ahead regardless.
  */
 internal class FlagSignalNotifier(
     private val context: Context,
@@ -38,7 +40,11 @@ internal class FlagSignalNotifier(
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, FlagStrings.NOTIFICATION_CHANNEL, NotificationManager.IMPORTANCE_LOW),
         )
-        val progress = (countdown.progress(clock()) * PROGRESS_MAX).roundToInt()
+        val now = clock()
+        val progress = (countdown.progress(now) * PROGRESS_MAX).roundToInt()
+        // Each repost restarts the timeout, so it is what remains until the deadline, not the whole span.
+        val deadline = countdown.end + timeout.toJavaDuration()
+        val remaining = java.time.Duration.between(now, deadline).toMillis().coerceAtLeast(1L)
         val builder = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.featureflag_ic_signal)
             .setContentTitle(signal.signalDescription)
@@ -50,7 +56,7 @@ internal class FlagSignalNotifier(
             .setWhen(countdown.end.toEpochMilli())
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
-            .setTimeoutAfter((countdown.duration + timeout).inWholeMilliseconds)
+            .setTimeoutAfter(remaining)
         launchIntent()?.let { builder.setContentIntent(it) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             builder.setStyle(
