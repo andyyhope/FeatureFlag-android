@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- The test app is its own companion, so it requests the bridge permission it also defines. -->
+    <uses-permission android:name="${applicationId}.permission.FEATURE_FLAG_BRIDGE" />
+
+    <!-- The tests run in the main process; the provider, and the "host" it serves, in :host. -->
+    <application android:name="com.andyyhope.featureflag.bridge.HostTestApplication">
+        <provider
+            android:name="com.andyyhope.featureflag.bridge.FlagBridgeProvider"
+            android:process=":host"
+            tools:node="merge" />
+    </application>
+</manifest>

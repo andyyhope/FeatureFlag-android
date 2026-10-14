@@ -17,6 +17,9 @@ import com.andyyhope.featureflag.values.toBox
 import com.andyyhope.featureflag.values.toJson
 import java.io.File
 import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Instant
 
 /**
@@ -87,19 +90,40 @@ public data class FlagSchema(
         return JsonWriter.pretty(toJson()).toByteArray(Charsets.UTF_8)
     }
 
-    /** Writes [FILE_NAME] into [directory], creating it if needed, replacing any earlier one atomically. */
+    /**
+     * Writes [FILE_NAME] into [directory], creating it if needed, replacing any earlier one
+     * atomically, so a reader never sees half a file. Safe to call from several threads or
+     * processes at once: each writes its own temporary file and the last move wins.
+     *
+     * @throws IOException naming the target file, carrying the underlying failure.
+     */
     public fun write(directory: File): File {
         val bytes = jsonBytes()
-        if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Could not create $directory")
         val target = File(directory, FILE_NAME)
-        val temporary = File.createTempFile(FILE_NAME, ".tmp", directory)
+        // mkdirs() also returns false when another writer created the directory first.
+        if (!directory.isDirectory && !directory.mkdirs() && !directory.isDirectory) {
+            throw IOException("Could not write $target, because $directory is not a directory and could not be created.")
+        }
+        var temporary: File? = null
         try {
+            temporary = File.createTempFile(FILE_NAME, ".tmp", directory)
             temporary.writeBytes(bytes)
-            if (!temporary.renameTo(target)) throw IOException("Could not replace $target")
+            replace(temporary, target)
+        } catch (e: IOException) {
+            throw IOException("Could not write $target.", e)
         } finally {
-            temporary.delete()
+            temporary?.delete()
         }
         return target
+    }
+
+    /** Moves [source] over [target] atomically where the file system can, and plainly where it cannot. */
+    private fun replace(source: File, target: File) {
+        try {
+            Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (ignored: AtomicMoveNotSupportedException) {
+            Files.move(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 
     private fun toJson(): JsonValue = JsonValue.Object(

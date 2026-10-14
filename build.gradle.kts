@@ -6,25 +6,21 @@ import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.android.library) apply false
     alias(libs.plugins.detekt) apply false
 }
 
-// detekt (+ its ktlint-backed formatting ruleset) on every module — the static-analysis + format gate.
-// Shared config lives in config/detekt/detekt.yml. Run the gate with `./gradlew detekt`.
-// Capture the catalog accessor at root scope — `libs` isn't resolvable inside the subprojects closure.
-val detektFormatting = libs.detekt.formatting
-val sharedDetektConfig = rootProject.files("config/detekt/detekt.yml")
-
-// The Kotlin the `subprojects` block below cannot reach, analysed on the root project instead:
-// `build-logic/` is an included build (never a subproject), and `*.gradle.kts` belong to no source set.
+// Every module gets detekt from its convention plugin (featureflag.detekt). What no module can
+// reach is analysed on the root project instead: `build-logic/` is an included build (never a
+// subproject), and `*.gradle.kts` belong to no source set. Run the gate with `./gradlew detekt`.
 apply(plugin = "io.gitlab.arturbosch.detekt")
 
 extensions.configure<DetektExtension> {
     buildUponDefaultConfig = true
-    config.setFrom(sharedDetektConfig)
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
 }
 
-dependencies.add("detektPlugins", detektFormatting)
+dependencies.add("detektPlugins", libs.detekt.formatting)
 
 tasks.withType<Detekt>().configureEach {
     setSource(
@@ -43,26 +39,5 @@ tasks.withType<Detekt>().configureEach {
         sarif.required.set(false)
         md.required.set(false)
         txt.required.set(false)
-    }
-}
-
-subprojects {
-    apply(plugin = "io.gitlab.arturbosch.detekt")
-
-    extensions.configure<DetektExtension> {
-        buildUponDefaultConfig = true
-        config.setFrom(sharedDetektConfig)
-    }
-
-    dependencies.add("detektPlugins", detektFormatting)
-
-    tasks.withType<Detekt>().configureEach {
-        reports {
-            html.required.set(true)
-            xml.required.set(false)
-            sarif.required.set(false)
-            md.required.set(false)
-            txt.required.set(false)
-        }
     }
 }
