@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- FlagQrImage.writePng writes here; nothing else in the app is exposed. -->
+    <cache-path name="featureflag" path="featureflag/" />
+</paths>
