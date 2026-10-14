@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 // Ports Swift's FlagRecordKeyEditorTests: the companion cannot write a list the host will refuse,
 // so a key the host enforces is enforced here too, including by "Add" pressed twice.
@@ -57,6 +58,18 @@ class FlagRecordKeyEditorTest {
         assertEquals("name", refusal.field)
         assertEquals(FlagValueBox.String("a"), refusal.value)
         assertEquals(listOf("a", "b"), names(), "the refused write should have changed nothing")
+    }
+
+    @Test
+    fun aRefusedRecordWriteStillBumpsTheRevision() = runBlocking<Unit> {
+        store.setRecords(routes, listOf(named("a"), named("b")))
+        val stored = store.value(routes)
+        val before = store.revision.value
+
+        assertFailsWith<FlagRecordEditingException> { store.setRecords(routes, listOf(named("a"), named("a"))) }
+
+        assertTrue(store.revision.value > before, "a refused edit should still bump the revision")
+        assertEquals(stored, store.value(routes))
     }
 
     @Test

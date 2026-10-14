@@ -182,15 +182,17 @@ public class FlagEditingStore(
         entry.recordShape?.let { FlagRecordList.decode(value(entry), it) }
 
     /**
-     * Writes [records] back as the text the host reads. Refuses, writing nothing, a list in which
+     * Writes [records] back as the text the host reads. Refuses, writing nothing but still bumping [revision], a list in which
      * two records share a key at any depth, because the host would refuse it and read its default.
      *
      * @throws FlagRecordEditingException for a repeated key.
      * @throws FlagSerializationException.NonFiniteNumber when a field holds an infinity or a NaN.
      */
     public suspend fun setRecords(entry: FlagSchema.Entry, records: List<Map<String, FlagValueBox>>) {
-        entry.recordShape?.let { checkKeys(records, it) }
-        setValue(entry, FlagRecordList.encode(records))
+        write {
+            entry.recordShape?.let { checkKeys(records, it) }
+            source.setBox(entry.key, FlagRecordList.encode(records))
+        }
     }
 
     // Helpers
