@@ -212,6 +212,7 @@ no observer for that signal reads as "no response" rather than as success.
 |---|---|---|
 | [`AppFlags.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/AppFlags.kt) | host | The flag tree |
 | [`DemoApplication.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/DemoApplication.kt) | host | Builds the pole, publishes the schema and observes signals, in `onCreate` |
+| [`DemoConfiguration.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/DemoConfiguration.kt) | host | Defines `demoConfiguration()`, the environment configuration the app and the tests use |
 | [`DemoModel.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/DemoModel.kt) | host | Owns the environment configuration, the remote source it feeds, and the screen's state |
 | [`DemoScreen.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/DemoScreen.kt) | host | Live values, remote payloads, provenance, signals and the flow counter |
 | [`DemoActivity.kt`](host/src/main/kotlin/com/andyyhope/featureflag/sample/host/DemoActivity.kt) | host | Shows the screen |
@@ -315,7 +316,7 @@ companion's certificate in the host's `knownSigner` permission.
 
 ## When a payload has a shape no path can reach
 
-Three of the demo's payloads are ordinary — every flag sits at a dot path, and `remoteKey` finds
+Four of the demo's payloads are ordinary — every flag sits at a dot path, and `remoteKey` finds
 it. Two are not:
 
 <!-- snippet-ignore: abridged from RemoteConfiguration.kt -->
