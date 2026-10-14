@@ -16,6 +16,16 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    // The debug key both sample apps share, so Android grants the companion the bridge's signature
+    // permission. Committed and debug-only: see samples/keys/README.md.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../keys/shared-debug.keystore")
+            storePassword = "android"
+            keyAlias = "sample"
+            keyPassword = "android"
+        }
+    }
 }
 
 dependencies {
