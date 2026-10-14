@@ -202,6 +202,25 @@ class FlagCompanionSessionTest {
     }
 
     @Test
+    fun aRepublishedSchemaWithTheSameFlagsKeepsTheStore() = runTest {
+        // The host stamps generatedAt on every launch; a relaunch alone is not a change.
+        val later = schema.copy(generatedAt = schema.generatedAt.plusSeconds(60))
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(later))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val before = assertIs<FlagCompanionState.Ready>(session.state.value)
+
+        session.onForeground()
+        runCurrent()
+
+        assertSame(before, session.state.value)
+        assertEquals(1, host.opened.size)
+        assertEquals(1, host.opened.single().refreshThreads.size)
+        assertFalse(host.opened.single().closed)
+    }
+
+    @Test
     fun aHostThatHasStoppedPublishingLeavesTheLastSchemaInPlace() = runTest {
         val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.NotPublished)
         val session = session(host)

@@ -120,7 +120,7 @@ internal class FlagCompanionSession(
     private suspend fun reconnect() {
         val current = open ?: return
         val connection = connect()
-        if (connection is FlagBridgeConnection.Connected && connection.schema != current.store.schema) {
+        if (connection is FlagBridgeConnection.Connected && connection.schema.differsFrom(current.store.schema)) {
             openStore(connection.schema)
         } else {
             refresh(current.source)
@@ -157,6 +157,9 @@ internal class FlagCompanionSession(
             }
         }
     }
+
+    /** The host stamps generatedAt on every launch, so a relaunch alone is not a change. */
+    private fun FlagSchema.differsFrom(other: FlagSchema) = copy(generatedAt = other.generatedAt) != other
 
     private fun dispose(open: Open?) {
         open ?: return
