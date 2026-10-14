@@ -21,6 +21,10 @@ gradlePlugin {
             id = "featureflag.android-library"
             implementationClass = "AndroidLibraryConventionPlugin"
         }
+        register("androidApplication") {
+            id = "featureflag.android-application"
+            implementationClass = "AndroidApplicationConventionPlugin"
+        }
         register("detekt") {
             id = "featureflag.detekt"
             implementationClass = "DetektConventionPlugin"
