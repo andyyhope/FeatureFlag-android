@@ -155,8 +155,8 @@ private fun FlagCodeBlock(
     isRejected: Boolean,
     textStyle: TextStyle,
     keyboardOptions: KeyboardOptions,
-    fieldModifier: Modifier,
     modifier: Modifier,
+    fieldModifier: Modifier,
 ) {
     val shape = RoundedCornerShape(6.dp)
     val colors = MaterialTheme.colorScheme

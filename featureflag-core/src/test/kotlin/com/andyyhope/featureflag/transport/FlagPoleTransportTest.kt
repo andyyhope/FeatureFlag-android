@@ -356,6 +356,19 @@ class FlagPoleTransportTest {
         assertTrue(pole.exportJson().decodeToString().contains("\"ratio\" : 1.5"))
     }
 
+    // Applying a decoded payload
+
+    @Test
+    fun applyPayloadWritesEveryValueAsAnOverride() {
+        val pole = goldenPole()
+        val json = document("""{"formatVersion":1,"values":{"bool-flag":true,"int-flag":3}}""")
+
+        pole.applyPayload(FlagPayload.decode(json, pole.schema))
+
+        val expected = mapOf(boolFlag to FlagValueBox.Bool(true), intFlag to FlagValueBox.Int(3))
+        assertEquals(expected, pole.exportPayload().values)
+    }
+
     // Import used to apply part of a payload
 
     @Test

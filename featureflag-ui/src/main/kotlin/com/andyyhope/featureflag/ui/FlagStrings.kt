@@ -169,7 +169,7 @@ internal object FlagStrings {
     // Signals
     const val DELAY = "Delay"
     const val DELAY_FOOTER_INSTANT =
-        "Sent the moment you tap. The app has to be running to hear it, and opening this one puts it in the background."
+        "Sent the moment you tap. If the app isn't running, Android starts it to deliver the signal."
     const val DELAY_FOOTER_DELAYED =
         "Tap a signal, then switch to the app. It fires when the circle completes, by which time the app is in " +
             "front and listening."

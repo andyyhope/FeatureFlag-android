@@ -257,7 +257,7 @@ public class FlagBridgeClient(
     }
 
     private companion object {
-        const val ATTEMPTS = 2
+        private const val ATTEMPTS = 2
 
         /** How long a withdrawal may take; the coroutine that asked for it is already cancelled. */
         val CANCEL_TIMEOUT = 2.seconds
@@ -269,7 +269,7 @@ public class FlagBridgeClient(
             null
         }
 
-        const val HEX_DIGITS = "0123456789ABCDEF"
+        private const val HEX_DIGITS = "0123456789ABCDEF"
 
         /** SHA-256 of the certificate, uppercase hex with no separators, as apksigner prints it. */
         fun fingerprint(signature: Signature): String = buildString {
