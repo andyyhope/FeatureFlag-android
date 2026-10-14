@@ -324,6 +324,40 @@ class FlagCompanionSessionTest {
     }
 
     @Test
+    fun tryAgainLoadsAChangedSchema() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(grown))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val before = assertIs<FlagCompanionState.Ready>(session.state.value)
+
+        session.refresh()
+        runCurrent()
+
+        val after = assertIs<FlagCompanionState.Ready>(session.state.value)
+        assertNotSame(before.store, after.store)
+        assertEquals(grown, after.store.schema)
+        assertTrue(host.opened[0].closed, "the old source outlived its store")
+        assertFalse(host.opened[1].closed)
+    }
+
+    @Test
+    fun tryAgainWithTheSameSchemaRefreshes() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val before = assertIs<FlagCompanionState.Ready>(session.state.value)
+
+        session.refresh()
+        runCurrent()
+
+        assertSame(before.store, assertIs<FlagCompanionState.Ready>(session.state.value).store)
+        assertEquals(1, host.opened.single().refreshThreads.size)
+        assertFalse(host.opened.single().closed)
+    }
+
+    @Test
     fun comingBackToAHostThatCannotBeReadShowsTheBanner() = runTest {
         val host = Host(FlagBridgeConnection.Connected(schema))
         val session = session(host)

@@ -90,10 +90,13 @@ internal class FlagCompanionSession(
         }
     }
 
-    /** The banner's "Try again": re-reads the overrides; a failure stays in the banner. */
+    /**
+     * The banner's "Try again". Ready: reconnects as [onForeground] does, so a host reinstalled
+     * with a changed schema is loaded without leaving the screen; a failure stays in the banner.
+     * Otherwise there is no source to re-read and nothing happens.
+     */
     fun refresh() {
-        val source = open?.source ?: return
-        scope.launch { refresh(source) }
+        if (state.value is FlagCompanionState.Ready) attempt { reconnect() }
     }
 
     /** Stops connecting and closes the source. */
