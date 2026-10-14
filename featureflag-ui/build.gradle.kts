@@ -1,6 +1,7 @@
 plugins {
     id("featureflag.android-library")
     id("featureflag.compose")
+    id("featureflag.publish")
 }
 
 android {

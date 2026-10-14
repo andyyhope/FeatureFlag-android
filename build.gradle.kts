@@ -9,6 +9,19 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.vanniktech.publish) apply false
+    // Applied, not apply-false: the root aggregates the modules' API docs into one site.
+    alias(libs.plugins.dokka)
+}
+
+// The docs site: ./gradlew :dokkaGeneratePublicationHtml, into build/dokka/html. featureflag-ksp is left out,
+// because no app calls it; it still publishes its own javadoc jar.
+dependencies {
+    dokka(project(":featureflag-core"))
+    dokka(project(":featureflag-test"))
+    dokka(project(":featureflag-android"))
+    dokka(project(":featureflag-bridge"))
+    dokka(project(":featureflag-ui"))
 }
 
 // Every module gets detekt from its convention plugin (featureflag.detekt). What no module can

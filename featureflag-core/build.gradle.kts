@@ -1,6 +1,7 @@
 plugins {
     id("featureflag.jvm-library")
     alias(libs.plugins.ksp)
+    id("featureflag.publish")
 }
 
 dependencies {
