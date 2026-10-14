@@ -17,6 +17,10 @@ import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -30,6 +34,7 @@ import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowContentResolver
 import java.time.Instant
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -378,6 +383,113 @@ class FlagBridgeClientTest {
         val deadlines = bridge.extrasSeen.map { it!!.getLong(FlagBridgeContract.KEY_DEADLINE) }
         assertEquals(2, deadlines.size)
         assertEquals(deadlines[0], deadlines[1])
+    }
+
+    // send, delayed
+
+    @Test
+    fun aSignalWithoutADelaySendsOnlyItsDeadline() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+
+        assertTrue(FlagBridgeClient(context, host).send(TestSignal.Purge, delay = Duration.ZERO))
+
+        assertEquals(setOf(FlagBridgeContract.KEY_DEADLINE), bridge.extrasSeen.single()!!.keySet())
+    }
+
+    @Test
+    fun aDelayedSignalCarriesItsDelayATicketAndALaterDeadline() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+        val timeout = 7.seconds
+        val delay = 300.milliseconds
+
+        val before = SystemClock.elapsedRealtime()
+        assertTrue(FlagBridgeClient(context, host).send(TestSignal.Purge, timeout, delay))
+        val after = SystemClock.elapsedRealtime()
+
+        val extras = bridge.extrasSeen.single()!!
+        assertEquals(300L, extras.getLong(FlagBridgeContract.KEY_DELAY))
+        assertTrue(extras.getString(FlagBridgeContract.KEY_TICKET).orEmpty().isNotEmpty())
+        val budget = (timeout + delay).inWholeMilliseconds
+        val deadline = extras.getLong(FlagBridgeContract.KEY_DEADLINE)
+        assertTrue(deadline in (before + budget)..(after + budget), "deadline $deadline")
+    }
+
+    @Test
+    fun eachDelayedSendHasItsOwnTicket() = runBlocking<Unit> {
+        val bridge = installBridge()
+        val client = FlagBridgeClient(context, host)
+
+        client.send(TestSignal.Purge, delay = 10.milliseconds)
+        client.send(TestSignal.Purge, delay = 10.milliseconds)
+
+        val tickets = bridge.extrasSeen.map { it!!.getString(FlagBridgeContract.KEY_TICKET) }
+        assertEquals(2, tickets.toSet().size, "$tickets")
+    }
+
+    @Test
+    fun aDelayedSignalIsGivenItsDelayOnTopOfItsTimeout() = runBlocking<Unit> {
+        // The host waits 500 ms before it answers; a 200 ms timeout alone would have given up.
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+
+        val (handled, waited) = measureTimedValue {
+            FlagBridgeClient(context, host).send(TestSignal.Purge, timeout = 200.milliseconds, delay = 500.milliseconds)
+        }
+
+        assertTrue(handled)
+        assertTrue(waited >= 500.milliseconds, "waited $waited")
+    }
+
+    @Test
+    fun cancellingADelayedSendWithdrawsItFromTheHost() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+        val waiting = CountDownLatch(1)
+        bridge.delayReached = waiting
+
+        // Undispatched, so the call is on its way before this thread blocks on the latch.
+        val send = launch(start = CoroutineStart.UNDISPATCHED) {
+            FlagBridgeClient(context, host).send(TestSignal.Purge, delay = 10.seconds)
+        }
+        assertTrue(waiting.await(5, TimeUnit.SECONDS))
+        val (_, took) = measureTimedValue { send.cancelAndJoin() }
+
+        val ticket = bridge.extrasSeen.first()!!.getString(FlagBridgeContract.KEY_TICKET)
+        assertTrue(send.isCancelled)
+        assertEquals(listOf("signal Purge", "cancel $ticket"), bridge.calls)
+        assertTrue(took < 5.seconds, "took $took")
+    }
+
+    @Test
+    fun cancellingAnUndelayedSendWithdrawsNothing() = runBlocking<Unit> {
+        val bridge = installBridge()
+        bridge.handledSignals = setOf("Purge")
+        bridge.stall = stall
+
+        val send = launch { FlagBridgeClient(context, host).send(TestSignal.Purge, timeout = 10.seconds) }
+        while (bridge.calls.isEmpty()) delay(10)
+        send.cancelAndJoin()
+        stall.countDown()
+
+        assertEquals(listOf("signal Purge"), bridge.calls)
+    }
+
+    @Test
+    fun aWithdrawalTheHostCannotTakeIsStillACancellation() = runBlocking<Unit> {
+        val bridge = installBridge()
+        val waiting = CountDownLatch(1)
+        bridge.delayReached = waiting
+
+        val send = launch(start = CoroutineStart.UNDISPATCHED) {
+            FlagBridgeClient(context, host).send(TestSignal.Purge, delay = 1.seconds)
+        }
+        assertTrue(waiting.await(5, TimeUnit.SECONDS))
+        bridge.failure = IllegalStateException("The host is going away.")
+        send.cancelAndJoin()
+
+        assertTrue(send.isCancelled)
     }
 
     // Helpers

@@ -405,6 +405,122 @@ class FlagBridgeProviderTest {
         assertEquals(Duration.ZERO, provider.deliveryTimeout(deadlineExtras(Long.MIN_VALUE), enteredAt = 10_000L))
     }
 
+    // Delayed signals
+
+    @Test
+    fun aDelayedSignalIsDeliveredOnceItsDelayHasPassed() {
+        val purges = AtomicInteger()
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { purges.incrementAndGet() }
+        try {
+            provider.elapsedRealtime = ::realClock
+            val started = realClock()
+
+            // On the main thread, so delivery runs inline once the wait is over.
+            val reply = provider.call(FlagBridgeContract.METHOD_SIGNAL, "Purge", delayedExtras(300, "t-1", realClock() + 5_300))
+
+            assertTrue(reply.getBoolean(FlagBridgeContract.KEY_HANDLED))
+            assertTrue(realClock() - started >= 300, "delivered after ${realClock() - started} ms")
+            assertEquals(1, purges.get())
+        } finally {
+            observation.close()
+        }
+    }
+
+    @Test
+    fun aCancelDuringTheDelayWithholdsTheSignal() {
+        val purges = AtomicInteger()
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { purges.incrementAndGet() }
+        try {
+            startUp()
+            val answer = AtomicReference<Pair<Boolean, Long>>()
+            val done = CountDownLatch(1)
+            thread {
+                val started = realClock()
+                val reply = provider.call(FlagBridgeContract.METHOD_SIGNAL, "Purge", delayedExtras(5_000, "t-2", realClock() + 7_000))
+                answer.set(reply.getBoolean(FlagBridgeContract.KEY_HANDLED) to (realClock() - started))
+                done.countDown()
+            }
+            Thread.sleep(200)
+
+            val cancelled = provider.call(FlagBridgeContract.METHOD_CANCEL, "t-2", null)
+
+            assertEquals(FlagBridgeContract.STATUS_OK, cancelled.getString(FlagBridgeContract.KEY_STATUS))
+            assertTrue(done.await(5, TimeUnit.SECONDS))
+            shadowOf(Looper.getMainLooper()).idle()
+            assertFalse(answer.get().first)
+            assertTrue(answer.get().second < 2_000, "waited ${answer.get().second} ms")
+            assertEquals(0, purges.get())
+        } finally {
+            observation.close()
+        }
+    }
+
+    @Test
+    fun aCancelThatOvertakesItsSignalStillWithholdsIt() {
+        // The two calls cross on different binder threads, so the cancel can arrive first.
+        val purges = AtomicInteger()
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { purges.incrementAndGet() }
+        try {
+            provider.elapsedRealtime = ::realClock
+            provider.call(FlagBridgeContract.METHOD_CANCEL, "t-3", null)
+            val started = realClock()
+
+            val reply = provider.call(FlagBridgeContract.METHOD_SIGNAL, "Purge", delayedExtras(5_000, "t-3", realClock() + 7_000))
+
+            assertFalse(reply.getBoolean(FlagBridgeContract.KEY_HANDLED))
+            assertTrue(realClock() - started < 1_000, "waited ${realClock() - started} ms")
+            assertEquals(0, purges.get())
+        } finally {
+            observation.close()
+        }
+    }
+
+    @Test
+    fun aCancelForATicketNobodyHoldsIsStillOk() {
+        val unknown = provider.call(FlagBridgeContract.METHOD_CANCEL, "nobody", null)
+        val nameless = provider.call(FlagBridgeContract.METHOD_CANCEL, null, null)
+
+        assertEquals(FlagBridgeContract.STATUS_OK, unknown.getString(FlagBridgeContract.KEY_STATUS))
+        assertEquals(FlagBridgeContract.STATUS_OK, nameless.getString(FlagBridgeContract.KEY_STATUS))
+    }
+
+    @Test
+    fun aCancelDoesNotWaitForStartup() {
+        // The main looper never runs, as on a cold host: a cancel needs nothing onCreate sets up.
+        val answered = CountDownLatch(1)
+        thread { provider.call(FlagBridgeContract.METHOD_CANCEL, "t-4", null).also { answered.countDown() } }
+
+        assertTrue(answered.await(1, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun aDelayIsClampedToAMinute() {
+        assertEquals(60.seconds, provider.signalDelay(Bundle().apply { putLong(FlagBridgeContract.KEY_DELAY, Long.MAX_VALUE) }))
+        assertEquals(Duration.ZERO, provider.signalDelay(Bundle().apply { putLong(FlagBridgeContract.KEY_DELAY, -5L) }))
+        assertEquals(Duration.ZERO, provider.signalDelay(deadlineExtras(5_000)))
+        assertEquals(Duration.ZERO, provider.signalDelay(null))
+        assertEquals(3.seconds, provider.signalDelay(Bundle().apply { putLong(FlagBridgeContract.KEY_DELAY, 3_000L) }))
+    }
+
+    @Test
+    fun theDelayCountsFromWhenTheSignalArrived() {
+        // A cold host's startup wait is part of the delay, not added to it: the signal arrives at
+        // 10 000 and the wait begins at 10 250, so 50 ms of its 300 ms delay are left.
+        val observation = FlagSignalChannel.host.observe(listOf(TestSignal.Purge)) { }
+        try {
+            val arrival = ArrayDeque(listOf(10_000L))
+            provider.elapsedRealtime = { arrival.removeFirstOrNull() ?: 10_250L }
+            val started = realClock()
+
+            val reply = provider.call(FlagBridgeContract.METHOD_SIGNAL, "Purge", delayedExtras(300, "t-5", deadline = 60_000L))
+
+            assertTrue(reply.getBoolean(FlagBridgeContract.KEY_HANDLED))
+            assertTrue(realClock() - started < 250, "waited ${realClock() - started} ms")
+        } finally {
+            observation.close()
+        }
+    }
+
     // Startup barrier
 
     @Test
@@ -494,6 +610,11 @@ class FlagBridgeProviderTest {
     )
 
     private fun deadlineExtras(deadline: Long) = Bundle().apply { putLong(FlagBridgeContract.KEY_DEADLINE, deadline) }
+
+    private fun delayedExtras(delay: Long, ticket: String, deadline: Long) = deadlineExtras(deadline).apply {
+        putLong(FlagBridgeContract.KEY_DELAY, delay)
+        putString(FlagBridgeContract.KEY_TICKET, ticket)
+    }
 
     private fun realClock(): Long = System.nanoTime() / NANOS_PER_MILLI
 

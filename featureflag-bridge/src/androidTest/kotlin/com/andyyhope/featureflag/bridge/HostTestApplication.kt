@@ -32,6 +32,7 @@ class HostTestApplication : Application() {
             BridgeTestSignal.Explode,
             BridgeTestSignal.DieOnce,
             BridgeTestSignal.Slow,
+            BridgeTestSignal.Record,
         )
         observation = FlagSignalChannel.host.observe(observed) { signal ->
             when (signal) {
@@ -39,6 +40,8 @@ class HostTestApplication : Application() {
                 // Kills this process mid-call the first time, as a host that crashes or is reclaimed would.
                 BridgeTestSignal.DieOnce -> if (File(filesDir, DIE_ONCE_MARKER).createNewFile()) Process.killProcess(Process.myPid())
                 BridgeTestSignal.Slow -> Thread.sleep(SLOW_HANDLER_MILLIS)
+                // Leaves a trace the tests, in the other process, can read: one line per delivery.
+                BridgeTestSignal.Record -> File(filesDir, DELIVERIES_LOG).appendText("${signal.name}\n")
                 else -> Unit
             }
         }
@@ -52,6 +55,9 @@ class HostTestApplication : Application() {
         /** Present once DieOnce has killed a host; the tests delete it first. Both processes share filesDir. */
         const val DIE_ONCE_MARKER = "die-once"
 
+        /** A line per Record the host's handler ran; the tests delete it first. */
+        const val DELIVERIES_LOG = "deliveries"
+
         /** A cold start long enough that the first call arrives while onCreate is still running (S6). */
         const val STARTUP_MILLIS = 1_000L
 
@@ -61,7 +67,7 @@ class HostTestApplication : Application() {
 }
 
 /** The signals the host observes, plus one it does not. */
-enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Slow, Unobserved }
+enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Slow, Record, Unobserved }
 
 /** The host's flags: one of every value type. */
 object BridgeTestHost {

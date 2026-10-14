@@ -57,6 +57,16 @@ public class FlagBridgeProvider : ContentProvider() {
     /** How long the first answer waits for the main looper. Tests shorten it. */
     internal var startupTimeout: Duration = STARTUP_TIMEOUT
 
+    /**
+     * Each delayed signal's cancellation, by ticket: opened by [FlagBridgeContract.METHOD_CANCEL],
+     * removed when the signal stops waiting. A cancel for a signal that never arrives, or already
+     * finished, stays; the oldest go once there are more than [MAX_CANCELLATIONS].
+     */
+    private val cancellations = object : LinkedHashMap<String, CountDownLatch>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CountDownLatch>?): Boolean =
+            size > MAX_CANCELLATIONS
+    }
+
     override fun onCreate(): Boolean {
         val context = checkNotNull(context)
         source = SharedPreferencesSource.companion(context)
@@ -81,6 +91,8 @@ public class FlagBridgeProvider : ContentProvider() {
         if (method == FlagBridgeContract.METHOD_SIGNAL && deadlineExpired(extras, enteredAt)) {
             return Bundle().apply { putBoolean(FlagBridgeContract.KEY_HANDLED, false) }
         }
+        // A cancel needs nothing the app's onCreate sets up, so it does not wait for it either.
+        if (method == FlagBridgeContract.METHOD_CANCEL) return cancel(arg)
         awaitStartup()
         return when (method) {
             FlagBridgeContract.METHOD_HELLO -> Bundle().apply {
@@ -89,16 +101,55 @@ public class FlagBridgeProvider : ContentProvider() {
             FlagBridgeContract.METHOD_OVERRIDES -> overrides(context)
             FlagBridgeContract.METHOD_APPLY -> apply(context, extras)
             FlagBridgeContract.METHOD_SIGNAL -> Bundle().apply {
-                val timeout = deliveryTimeout(extras, enteredAt)
-                // No budget left: deliver would still queue the task, and a handler could run for a client told false.
-                putBoolean(
-                    FlagBridgeContract.KEY_HANDLED,
-                    timeout > Duration.ZERO && FlagSignalChannel.host.deliver(arg.orEmpty(), timeout),
-                )
+                // The wait comes first: the deadline already includes it, so the budget is not spent twice.
+                val delivered = waitOutDelay(extras, enteredAt) &&
+                    deliver(arg.orEmpty(), deliveryTimeout(extras, enteredAt))
+                putBoolean(FlagBridgeContract.KEY_HANDLED, delivered)
             }
             else -> throw IllegalArgumentException("Unknown bridge method '$method'.")
         }
     }
+
+    // No budget left: deliver would still queue the task, and a handler could run for a client told false.
+    private fun deliver(name: String, timeout: Duration): Boolean =
+        timeout > Duration.ZERO && FlagSignalChannel.host.deliver(name, timeout)
+
+    /** How long a signal asks the host to wait before delivering it: its [FlagBridgeContract.KEY_DELAY], clamped. */
+    internal fun signalDelay(extras: Bundle?): Duration =
+        (extras?.getLong(FlagBridgeContract.KEY_DELAY) ?: 0L)
+            .coerceIn(0L, FlagBridgeContract.MAX_DELAY.inWholeMilliseconds)
+            .milliseconds
+
+    /**
+     * Holds a delayed signal until its delay, counted from when it arrived, has passed. False when
+     * a [FlagBridgeContract.METHOD_CANCEL] for its ticket came first, before or during the wait.
+     */
+    private fun waitOutDelay(extras: Bundle?, enteredAt: Long): Boolean {
+        val delay = signalDelay(extras)
+        if (delay <= Duration.ZERO) return true
+        val ticket = extras?.getString(FlagBridgeContract.KEY_TICKET)
+        // A delayed signal without a ticket cannot be cancelled, but still waits.
+        val cancelled = ticket?.let(::cancellation) ?: CountDownLatch(1)
+        try {
+            val remaining = enteredAt + delay.inWholeMilliseconds - elapsedRealtime()
+            if (remaining > 0) cancelled.await(remaining, TimeUnit.MILLISECONDS)
+            return cancelled.count > 0
+        } finally {
+            if (ticket != null) synchronized(cancellations) { cancellations.remove(ticket) }
+        }
+    }
+
+    /**
+     * Withdraws the delayed signal [ticket] names. A cancel can overtake its signal on the way in, so
+     * one for a ticket that is not waiting yet is kept, and the signal finds it when it arrives.
+     */
+    private fun cancel(ticket: String?): Bundle {
+        if (ticket != null) cancellation(ticket).countDown()
+        return status(FlagBridgeContract.STATUS_OK)
+    }
+
+    private fun cancellation(ticket: String): CountDownLatch =
+        synchronized(cancellations) { cancellations.getOrPut(ticket) { CountDownLatch(1) } }
 
     private fun deadlineExpired(extras: Bundle?, enteredAt: Long): Boolean =
         extras != null && extras.containsKey(FlagBridgeContract.KEY_DEADLINE) &&
@@ -243,5 +294,8 @@ public class FlagBridgeProvider : ContentProvider() {
         val MAX_DELIVERY = 30.seconds
         const val SCHEMA_PATH = "/schema"
         const val DECODE_ATTEMPTS = 2
+
+        // Far more than the binder threads that can be waiting at once.
+        const val MAX_CANCELLATIONS = 64
     }
 }

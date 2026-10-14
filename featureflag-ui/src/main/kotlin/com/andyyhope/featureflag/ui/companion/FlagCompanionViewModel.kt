@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.andyyhope.featureflag.android.bridge.FlagBridgeClient
 import com.andyyhope.featureflag.android.bridge.FlagBridgeSource
+import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.sources.MutableFlagValueSource
 import kotlin.time.Duration
 
@@ -33,6 +34,12 @@ internal class FlagCompanionViewModel(
     init {
         session.start()
     }
+
+    /**
+     * Asks the host to deliver [signal] after [delay], within the client's timeout on top: what the
+     * signals model sends with. Cancelling the caller withdraws a delayed signal from the host.
+     */
+    suspend fun send(signal: FlagSignal, delay: Duration): Boolean = client.send(signal, delay = delay)
 
     override fun onCleared() {
         session.close()

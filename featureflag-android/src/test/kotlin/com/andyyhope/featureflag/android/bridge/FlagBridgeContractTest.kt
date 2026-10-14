@@ -9,6 +9,7 @@ import org.robolectric.annotation.Config
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [36])
@@ -56,21 +57,27 @@ class FlagBridgeContractTest {
     }
 
     @Test
+    fun aHostWaitsAtMostAMinuteBeforeDeliveringASignal() {
+        assertEquals(60.seconds, FlagBridgeContract.MAX_DELAY)
+    }
+
+    @Test
     fun theWireNamesAreStable() {
         // Host and companion builds from different releases must still agree on these.
         assertEquals(1, FlagBridgeContract.PROTOCOL)
         assertEquals("com.andyyhope.featureflag.companion", FlagBridgeContract.PREFERENCES_NAME)
         assertEquals(
-            listOf("hello", "overrides", "apply", "signal"),
+            listOf("hello", "overrides", "apply", "signal", "cancel"),
             listOf(
                 FlagBridgeContract.METHOD_HELLO,
                 FlagBridgeContract.METHOD_OVERRIDES,
                 FlagBridgeContract.METHOD_APPLY,
                 FlagBridgeContract.METHOD_SIGNAL,
+                FlagBridgeContract.METHOD_CANCEL,
             ),
         )
         assertEquals(
-            listOf("protocol", "status", "message", "payload", "remove", "handled", "size", "deadline"),
+            listOf("protocol", "status", "message", "payload", "remove", "handled", "size", "deadline", "delay", "ticket"),
             listOf(
                 FlagBridgeContract.KEY_PROTOCOL,
                 FlagBridgeContract.KEY_STATUS,
@@ -80,6 +87,8 @@ class FlagBridgeContractTest {
                 FlagBridgeContract.KEY_HANDLED,
                 FlagBridgeContract.KEY_SIZE,
                 FlagBridgeContract.KEY_DEADLINE,
+                FlagBridgeContract.KEY_DELAY,
+                FlagBridgeContract.KEY_TICKET,
             ),
         )
         assertEquals(

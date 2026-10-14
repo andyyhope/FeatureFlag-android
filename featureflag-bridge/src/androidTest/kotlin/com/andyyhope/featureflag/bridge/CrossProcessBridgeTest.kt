@@ -17,6 +17,9 @@ import com.andyyhope.featureflag.transport.FlagPayload
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -32,6 +35,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTimedValue
 
 /**
  * The bridge across a real process boundary. The test app is both apps: the tests run in its
@@ -183,6 +187,39 @@ class CrossProcessBridgeTest {
         assertTrue(client.send(BridgeTestSignal.Slow, timeout = 10.seconds))
     }
 
+    // Delayed signals
+
+    @Test
+    fun aDelayedSignalIsHandledOnceItsDelayHasPassed() = runBlocking<Unit> {
+        deliveries.delete()
+        client.connect()
+
+        val (handled, waited) = measureTimedValue { client.send(BridgeTestSignal.Record, delay = 2.seconds) }
+
+        assertTrue(handled)
+        assertTrue(waited >= 2.seconds, "answered after $waited")
+        assertEquals(listOf("Record"), deliveries.readLines())
+    }
+
+    @Test
+    fun aCancelledDelayedSignalIsNotDelivered() = runBlocking<Unit> {
+        deliveries.delete()
+        client.connect()
+        val pid = hostPid()
+
+        val send = launch { client.send(BridgeTestSignal.Record, delay = 3.seconds) }
+        delay(1.seconds)
+        send.cancelAndJoin()
+        // Past the moment the host would have delivered it.
+        delay(4.seconds)
+
+        assertFalse(deliveries.exists(), "the host delivered a cancelled signal")
+        assertEquals(pid, hostPid())
+        // The host is still answering signals.
+        assertTrue(client.send(BridgeTestSignal.Record))
+        assertEquals(listOf("Record"), deliveries.readLines())
+    }
+
     // Host death
 
     @Test
@@ -241,6 +278,9 @@ class CrossProcessBridgeTest {
     // Helpers
 
     private fun source(): FlagBridgeSource = runBlocking { client.source(schema) }.also(opened::add)
+
+    /** What the host's Record handler wrote; both processes share filesDir. */
+    private val deliveries: File get() = File(context.filesDir, HostTestApplication.DELIVERIES_LOG)
 
     private fun sourceThreads(): Int = Thread.getAllStackTraces().keys.count { it.isAlive && it.name == SOURCE_THREAD_NAME }
 

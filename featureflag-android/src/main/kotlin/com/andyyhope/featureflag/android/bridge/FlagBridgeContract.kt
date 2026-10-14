@@ -3,6 +3,8 @@ package com.andyyhope.featureflag.android.bridge
 import android.content.Context
 import android.net.Uri
 import java.io.File
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The names a host's bridge provider and a companion's client agree on: where the provider
@@ -35,6 +37,12 @@ public object FlagBridgeContract {
     public const val METHOD_APPLY: String = "apply"
     public const val METHOD_SIGNAL: String = "signal"
 
+    /**
+     * Ends a delayed [METHOD_SIGNAL]'s wait without delivering it; its argument is the signal's
+     * [KEY_TICKET]. Answers [STATUS_OK] whether or not that ticket was waiting.
+     */
+    public const val METHOD_CANCEL: String = "cancel"
+
     /** `Int`: the [PROTOCOL] the host speaks. */
     public const val KEY_PROTOCOL: String = "protocol"
 
@@ -62,6 +70,19 @@ public object FlagBridgeContract {
      * that finds no deadline treats the client as an older one and applies its default wait.
      */
     public const val KEY_DEADLINE: String = "deadline"
+
+    /**
+     * `Long`: sent with [METHOD_SIGNAL], how many milliseconds the host waits before it delivers.
+     * Absent or not positive delivers at once; the host clamps it to [MAX_DELAY]. The host holds
+     * the delay, so a companion frozen in the background cannot stall it.
+     */
+    public const val KEY_DELAY: String = "delay"
+
+    /** `String`: sent with a delayed [METHOD_SIGNAL], unique per send; [METHOD_CANCEL] names it. */
+    public const val KEY_TICKET: String = "ticket"
+
+    /** The longest [KEY_DELAY] a host waits. */
+    public val MAX_DELAY: Duration = 60.seconds
 
     public const val STATUS_OK: String = "ok"
     public const val STATUS_NOT_PUBLISHED: String = "not-published"

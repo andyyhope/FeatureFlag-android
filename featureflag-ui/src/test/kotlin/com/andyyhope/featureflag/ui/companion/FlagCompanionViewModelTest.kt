@@ -11,6 +11,7 @@ import com.andyyhope.featureflag.android.bridge.FlagBridgeClient
 import com.andyyhope.featureflag.android.bridge.FlagBridgeConnection
 import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
+import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.ui.editing.CompanionSchemas
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueType
@@ -21,10 +22,12 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
@@ -76,6 +79,16 @@ class FlagCompanionViewModelTest {
             source.close()
         }
     }
+
+    @Test
+    fun aSignalToAHostThatCannotBeReachedIsNotHandled() = runBlocking<Unit> {
+        val viewModel = FlagCompanionViewModel(context, host, 1.seconds)
+
+        assertFalse(viewModel.send(Ping.Ping, 1.seconds))
+        assertFalse(viewModel.send(Ping.Ping, Duration.ZERO))
+    }
+
+    private enum class Ping : FlagSignal { Ping }
 
     /** Runs the main looper until the session has left Connecting; connect hops to IO and back. */
     private fun awaitSettled(session: FlagCompanionSession): FlagCompanionState {
