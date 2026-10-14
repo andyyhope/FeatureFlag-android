@@ -5,5 +5,14 @@
     <application
         android:name=".DemoApplication"
         android:label="Demo"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <activity
+            android:name=".DemoActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>
