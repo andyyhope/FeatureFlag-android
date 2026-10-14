@@ -12,6 +12,10 @@ Run **Demo** first, then **Flags**. Both debug builds are signed with the same c
 [`keys/shared-debug.keystore`](keys/README.md), so they work on any emulator or device with no
 setup. Never use that key for anything real.
 
+| Host app | Companion app |
+|---|---|
+| ![Demo](screenshots/host.png) | ![Flags](screenshots/companion.png) |
+
 The host shows live values and, underneath, which source supplied each one. The companion
 renders the same flags from the published schema — a switch for the `Boolean`, a number field
 for the `Int`, a picker for the enum, a URL field — and marks what has been overridden.
