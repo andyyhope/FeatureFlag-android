@@ -28,6 +28,10 @@ zxing = "3.5.4"
 # Publishing (featureflag.publish): Maven Central through vanniktech, javadoc jars and the docs site from Dokka.
 vanniktechPublish = "0.37.0"
 dokka = "2.2.0"
+# ABI dumps (B3): BCV for the JVM modules; the bridge plugin runs BCV's tasks on AGP 9's built-in Kotlin, using
+# BCV internals, so the pair is pinned exactly.
+binaryCompatibilityValidator = "0.18.2"
+androidBcvBridge = "0.2.0"
 
 [libraries]
 # Build-logic classpath (convention plugins).
@@ -84,3 +88,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 vanniktech-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechPublish" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibilityValidator" }
+android-bcv-bridge = { id = "io.github.tjokinen.android-bcv-bridge", version.ref = "androidBcvBridge" }
