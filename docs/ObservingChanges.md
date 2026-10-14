@@ -68,8 +68,10 @@ When your app is not running, the companion's edit starts it, and the change is 
 when your code first reads the flag. See [The bridge](TheBridge.md) for how the provider
 gets there.
 
-If something writes the file in a way no listener hears, such as a file restored from a
-backup or another process, ask the source to announce everything:
+If something changes values in a way no listener hears, ask the source to announce
+everything. This only makes every flow read again: `SharedPreferences` caches the file
+per process, so a write from another process is not seen until the app restarts, which is
+why the companion goes through the bridge:
 
 <!-- snippet: observing-refresh -->
 ```kotlin

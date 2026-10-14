@@ -49,8 +49,9 @@ text. A value stored as something other than the
 flag's type reads as nothing, so the flag falls through to the next source; there is no
 numeric conversion. A write that changes nothing is skipped.
 
-`SnapshotSource` holds values in memory. It is the top of the stack in tests, the
-landing place for an imported payload, and the easy way to force a value in a preview:
+`SnapshotSource` holds values in memory. It is the top of the stack in tests, and the
+easy way to force a value in a preview (an imported payload lands in whichever mutable
+source is highest in the stack):
 
 <!-- snippet: sources-snapshot -->
 ```kotlin
@@ -244,7 +245,7 @@ do not. `All` is correct but expensive: every collector reads everything again.
 
 ### Reading from other threads
 
-`FlagPole` is not tied to the main thread. Reads are lock-free and safe from any thread,
+`FlagPole` is not tied to the main thread. The pole adds no locking and reads are safe from any thread,
 because apps read flags off the main thread constantly. No flow here hops to the main
 thread either: values arrive in the context of the coroutine that collects them — see
 [Observing changes](ObservingChanges.md).

@@ -95,7 +95,8 @@ signed with other certificates it names: the `knownSigner` protection flag and t
 `knownCerts` attribute, described in Android's
 [Defining permissions](https://developer.android.com/guide/topics/permissions/defining).
 This is platform behaviour, and this library's tests do not exercise it, so check it on a
-device before relying on it. Applied to the bridge, the host redeclares the permission in
+device before relying on it, including that `knownSigner` is ignored below API 31, where
+only the same key works. Applied to the bridge, the host redeclares the permission in
 its own manifest, whose root declares
 `xmlns:tools="http://schemas.android.com/tools"`:
 
@@ -117,8 +118,6 @@ Android's documentation for `knownCerts` gives:
     <item>3A1F8C0E52B7D9461C2E0F9A7B83D5C6E1F04A2B9C7D3E5F6081A2B3C4D5E6F7</item>
 </string-array>
 ```
-
-Below API 31, `knownSigner` is ignored and only the same key works.
 
 ### In the samples
 
@@ -192,7 +191,7 @@ returns the first problem. It never throws:
 |---|---|
 | `Connected` | It works. `schema` is the host's published schema. |
 | `UsesPermissionMissing` | The companion's manifest does not declare the host's permission. |
-| `HostNotFound` | No app with that id is installed, or it does not include the bridge, which hides it all the same. |
+| `HostNotFound` | No app with that id is installed, or (Android 11 and later) it does not include the bridge, which hides it all the same. |
 | `BridgeNotInstalled` | The host is installed and visible, but without the bridge. |
 | `PermissionDenied` | The two apps are signed with different keys. It carries both certificate digests. |
 | `NotPublished` | The host has never published its schema. |

@@ -10,7 +10,7 @@ what type it holds, or which values an enum allows.
 
 So the host publishes a `FlagSchema`: a JSON description of the tree, complete enough for
 an editor to be rendered from it alone. That document is what decouples the UI. One
-companion build can edit any app that publishes one.
+companion build can edit any app that publishes one and trusts it.
 
 ### Setting it up
 

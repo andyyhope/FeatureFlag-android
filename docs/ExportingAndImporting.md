@@ -104,7 +104,7 @@ val code = pole.qrCodeString() // "FFQR1:…"
 ```
 
 The wire format is `FFQR1:` followed by base64url of the payload's length and its
-deflate-compressed bytes. Compression is what makes this practical: flag keys and JSON
+deflate-compressed bytes (or the JSON itself, when deflate cannot shrink it). Compression is what makes this practical: flag keys and JSON
 structure repeat heavily, so realistic payloads shrink substantially and fit where the raw
 JSON would not. A code made on iOS imports here and one made here imports on iOS.
 

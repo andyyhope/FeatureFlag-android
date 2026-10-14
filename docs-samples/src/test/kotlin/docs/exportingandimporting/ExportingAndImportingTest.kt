@@ -98,6 +98,10 @@ class ExportingAndImportingTest {
 
         assertFalse(pole.flags.checkout.googlePay)
         assertEquals(50, pole.flags.pageSize)
+
+        pole.setOverride(AppFlagsSpec.checkout.googlePay, true)
+        pole.importJson(bytes)
+        assertTrue(pole.flags.checkout.googlePay)
     }
 
     @Test
