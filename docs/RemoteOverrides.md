@@ -102,7 +102,8 @@ would otherwise fail silently at every read, looking exactly like a flag that do
 work. Bytes that are not JSON at all are a `RemoteOverrideException.Malformed`.
 
 One deliberate allowance: JSON has a single number type, so a whole number satisfies a
-`Double` flag. That is exact widening, not coercion — `"true"` is still not a `Boolean`.
+`Double` or `Float` flag, and a decimal number narrows to a `Float` flag. That is numeric
+conversion only, not coercion between kinds — `"true"` is still not a `Boolean`.
 
 ### What a rejection tells you
 

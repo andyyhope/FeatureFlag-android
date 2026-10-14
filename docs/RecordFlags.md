@@ -121,8 +121,8 @@ A list of records is stored as JSON text:
 [{"enabled":true,"kind":"card","minimumSpend":0,"name":"Visa"}]
 ```
 
-To `SharedPreferences`, to a QR code, to import and export, and to remote validation, the
-flag is a `String`. Nothing had to learn what a record is, and nothing can drift.
+To `SharedPreferences` and to a QR code, the flag is a `String`, and nothing can drift.
+Import and remote validation read the published shape, described next.
 
 What makes it more than a string is the **shape**, published beside it in the schema.
 This is the whole schema a host with only `AppFlags` publishes:

@@ -35,10 +35,11 @@ Two rules you will be held to:
 - **`description` is required.** It is the label in the companion app's list. A flag
   nobody can identify is a flag nobody dares change.
 
-The getter runs once, against the compiled defaults, and every way of reading the flag
-reports that one value. A getter that reads another flag sees that flag's compiled
-default, never an override, and one that calls `Instant.now()` keeps the moment it first
-ran.
+The getter runs once, against the compiled defaults, and these all report that one value:
+`pole.flags`, `pole[ref]`, `pole.flow`, `pole.resolution`, the schema and
+`ref.defaultValue`. A getter that reads another flag sees that flag's compiled default,
+never an override, and one that calls `Instant.now()` keeps the moment it first ran. The
+exception is `flagDefaults` (see below), which runs the getter again on each read.
 
 **A flag's type cannot be nullable.** `val endpoint: String?` is rejected, because a flag
 always has a value — the getter is what it falls back to when no source supplies one,
@@ -47,7 +48,7 @@ type already has (`""`), or an enum with an entry for unset, which also earns yo
 in the companion instead of a free-text field.
 
 `remoteKey` is optional, and says where this flag lives in a backend payload. A flag
-without one is not remotely overridable at all — see
+without one is not remotely overridable by the default mapping — see
 [Remote overrides](RemoteOverrides.md).
 
 <!-- snippet: declaring-remote-key -->
@@ -174,7 +175,8 @@ The key is asked of the pole, because the pole's encoding decides it.
 
 ### Flags without a pole
 
-Every spec has `flagDefaults`, an instance whose flags all report their compiled default.
+Every spec has `flagDefaults`, an instance whose flags all report their compiled default
+(each read runs the getter again).
 Nothing has to be wired up, which is what makes previews and quick tests work with no
 setup at all:
 
@@ -228,10 +230,10 @@ exist, so apply the processor to that module too.
 
 ### If your module already has a type called `Flag`
 
-If your package has a type of its own called `Flag`, the two names collide. A wildcard
-`import com.andyyhope.featureflag.*` loses to your type, and `@Flag` then fails with
-`illegal annotation class 'Flag'`. An explicit `import com.andyyhope.featureflag.Flag`
-wins instead, which hides your own type in that file. Import the annotation under another
+If your package has a type of its own called `Flag`, the two names collide, and
+`@Flag` can end up resolving to your type, which the compiler rejects as an illegal
+annotation class. An explicit `import com.andyyhope.featureflag.Flag` wins instead, which
+hides your own type in that file. Import the annotation under another
 name, so both stay usable:
 
 <!-- snippet: declaring-flag-alias -->

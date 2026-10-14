@@ -7,8 +7,8 @@ Check, without running the app, that a config file wires up every flag it should
 A large config file has too many values to trace by hand, and two ways for one to be
 wrong that no single assertion catches.
 
-A flag whose `remoteKey` matches nothing is **not an error** — it falls through to its
-default, which looks exactly like a backend that sent no value. And a value in the file
+A flag whose `remoteKey` matches nothing is **not an error** — it falls through to
+whatever sits below, which looks exactly like a backend that sent no value. And a value in the file
 that no flag reads is invisible until someone notices the feature never turned on.
 
 `FlagMappingAudit` reports both directions, from a payload and a container, with no pole
@@ -99,7 +99,7 @@ report. It also suits a one-off check at launch in a debug build.
 
 ### Which values actually change something
 
-Alongside coverage, the audit compares every value the config supplies against the
+Alongside coverage, the audit compares each value the config applies against the
 flag's compiled default — so a large file tells you what it really does, not just that
 it parses.
 
