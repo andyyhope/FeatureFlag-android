@@ -31,7 +31,8 @@ dependencies {
 
 0.1.0 is not on Maven Central yet. Until it is, build it from a clone of this repository
 with `./gradlew publishToMavenLocal -PVERSION_NAME=0.1.0`, and add `mavenLocal()` to your
-build's repositories.
+build's repositories. Building from source needs an Android SDK: put `sdk.dir=<path>` in
+`local.properties`, or set `ANDROID_HOME`.
 
 The BOM keeps every artifact on one version. KSP's configuration does not inherit from
 `implementation`, so the BOM is named for it separately. KSP itself has to match your
@@ -143,8 +144,27 @@ even when the companion's request is what started your app. See
 
 ### 5. Render it in the companion
 
-The companion is a second app, with its own module, which applies the Compose compiler
-plugin as any Compose app does:
+The companion is a second app, with its own module. It is an ordinary Compose app, so it
+applies the Compose compiler plugin (at your Kotlin version), turns Compose on, and needs
+a minimum SDK of 26 or higher:
+
+<!-- snippet: companion-compose-setup -->
+```kts
+plugins {
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.10"
+}
+
+android {
+    defaultConfig {
+        minSdk = 26
+    }
+    buildFeatures {
+        compose = true
+    }
+}
+```
+
+Then its dependencies:
 
 <!-- snippet: companion-install -->
 ```kts
@@ -154,6 +174,7 @@ dependencies {
 
     implementation(platform("androidx.compose:compose-bom:2026.01.00"))
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.10.1")
 }
 ```

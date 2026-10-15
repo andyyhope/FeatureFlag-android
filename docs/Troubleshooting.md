@@ -151,8 +151,11 @@ expected.
 
 ### The compiler rejects `@Flag` as an illegal annotation class
 
-Your package declares its own type called `Flag`, and `@Flag` can end up resolving to it
-rather than to the annotation. Import the annotation under another name:
+Kotlin resolves a name by an explicit import first, then a declaration in the same
+package, then star imports. So when your package declares its own type called `Flag` and
+the file only has `import com.andyyhope.featureflag.*`, your type shadows the annotation
+and the compiler rejects `@Flag` as an illegal annotation class. Import the annotation
+under another name:
 
 <!-- snippet: declaring-flag-alias -->
 ```kotlin

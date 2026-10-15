@@ -121,7 +121,8 @@ val handled = client.send(AppSignal.RefetchRemoteConfiguration)
 ```
 
 `send` suspends until the host answers, and returns `true` when a handler ran to the end.
-It returns `false` when no observer in the host lists that signal, when a handler threw,
+It returns `false` when no observer in the host lists that signal, when every handler for
+it threw (if several observers list it, one that ran to the end is enough for `true`),
 when the host could not be reached, and when it did not answer within the timeout — five
 seconds unless you pass another. It never throws, except to cancel. `connect()` says why
 the host could not be reached, when that is the reason; a host that answered but did not

@@ -111,5 +111,10 @@ class BuildingACompanionAppTest {
 
         assertTrue(json.contains("\"checkout.google-pay\" : true"))
         assertTrue(store.isOverridden(entry))
+
+        store.resetAll()
+        assertFalse(store.isOverridden(entry))
+        store.import(code)
+        assertTrue(store.isOverridden(entry))
     }
 }

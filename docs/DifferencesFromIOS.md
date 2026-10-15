@@ -26,7 +26,8 @@ two share. Each is one line on what differs and one on why.
   it and `pole.flow(ref)` watches it.
 - **There is no `pole.someFlag` shorthand.** Kotlin has no dynamic member lookup, so a
   flag is always read as `pole.flags.someFlag`, and no flag name collides with the pole's.
-- **Six property names are reserved.** `flagDefaults`, `flagDescriptors`,
+- **Six property names are reserved instead of five.** iOS reserves `flags`, `keys`,
+  `schema`, `overrides` and `descriptors`; here `flagDefaults`, `flagDescriptors`,
   `flagContainerDescription`, `createFlags`, `flagLookup` and `flagKeys` belong to the
   generated code.
 - **A container must be an interface with no type parameters and no supertypes, and not
