@@ -1,0 +1,82 @@
+name: Check
+
+# Unit tests (Robolectric included), lint, detekt, the six ABI checks, DocsSyncTest and the API docs,
+# on every pull request and every push to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build, test, lint, detekt and ABI
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # The open-source GitHub Actions cache: no closed-source caching service, no terms to accept.
+          cache-provider: basic
+          # Only main writes the Gradle cache, so a pull request cannot evict what main relies on.
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Cache Robolectric's Android jars
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+
+      # A module whose ABI plugin stopped applying has no check task, and `check` would pass without
+      # it. Fail here instead, by asking Gradle what `check` will run. `shell: bash` runs with
+      # `-eo pipefail`, so a Gradle failure fails this step instead of surfacing as "missing" tasks;
+      # the default shell on Linux (`bash -e {0}`) has no pipefail. `tee` keeps the output in the log.
+      - name: Every ABI check is part of check
+        shell: bash
+        run: |
+          ./gradlew check --dry-run | tee check-plan.txt
+          missing=0
+          for task in \
+            :featureflag-core:apiCheck \
+            :featureflag-ksp:apiCheck \
+            :featureflag-test:apiCheck \
+            :featureflag-android:releaseApiCheck \
+            :featureflag-bridge:releaseApiCheck \
+            :featureflag-ui:releaseApiCheck
+          do
+            if ! grep -qx "$task SKIPPED" check-plan.txt; then
+              echo "::error::$task is not part of check, so that module's API would go unchecked"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Build, unit tests, lint, detekt and ABI checks
+        run: ./gradlew build detekt
+
+      - name: API docs
+        run: ./gradlew :dokkaGeneratePublicationHtml
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: check-reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
+            build/dokka/html/
+          if-no-files-found: ignore

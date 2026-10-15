@@ -1,0 +1,116 @@
+name: Release
+
+# A tag or a manual run publishes every artifact to a Maven repository inside the job and keeps it as
+# an artifact: a dry run, unsigned. Nothing reaches Maven Central unless a person dispatches this from
+# a v-tag with "publish" ticked, the repository variable PUBLISH_ENABLED is 'true', and the
+# maven-central environment's reviewers approve.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload to Maven Central (run from a v-tag; also needs PUBLISH_ENABLED and the maven-central environment)
+        type: boolean
+        default: false
+
+# One release at a time, and never cancelled halfway through an upload.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    name: Publish to a job-local Maven repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # The open-source GitHub Actions cache: no closed-source caching service, no terms to accept.
+          cache-provider: basic
+          cache-read-only: true
+
+      # A v-tag publishes its own version (v0.1.0 is 0.1.0); anything else publishes gradle.properties'.
+      - name: Publish, unsigned
+        run: |
+          version_args=()
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version_args=("-PVERSION_NAME=${GITHUB_REF_NAME#v}")
+          fi
+          ./gradlew publishToMavenLocal "${version_args[@]}" -Dmaven.repo.local="$RUNNER_TEMP/maven-local"
+
+      - name: List what was published
+        run: find "$RUNNER_TEMP/maven-local/com/andyyhope/featureflag" -type f | sort
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: maven-local
+          path: ${{ runner.temp }}/maven-local/com/andyyhope/featureflag/
+          if-no-files-found: error
+
+  publish:
+    name: Upload to Maven Central
+    needs: dry-run
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.publish && vars.PUBLISH_ENABLED == 'true'
+      && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: maven-central
+    env:
+      ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+      ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+      ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # The open-source GitHub Actions cache: no closed-source caching service, no terms to accept.
+          cache-provider: basic
+          cache-read-only: true
+
+      # Fail fast and clearly, rather than upload unsigned artifacts that Central rejects later. Only
+      # the names of empty secrets are printed, never their values.
+      - name: Check the signing key and Central credentials are set
+        run: |
+          missing=0
+          for name in \
+            ORG_GRADLE_PROJECT_mavenCentralUsername \
+            ORG_GRADLE_PROJECT_mavenCentralPassword \
+            ORG_GRADLE_PROJECT_signingInMemoryKey \
+            ORG_GRADLE_PROJECT_signingInMemoryKeyPassword
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::The ${name#ORG_GRADLE_PROJECT_} setting is empty; add its secret to the maven-central environment"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      # Uploads and validates a deployment; releasing it is a click in the Central Portal. Only ever the
+      # tag's version: the job's condition already requires a v-tag, and this refuses anything else too.
+      - name: Upload to the Central Portal
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::Publish only from a v-tag, never from $GITHUB_REF"
+            exit 1
+          fi
+          ./gradlew publishToMavenCentral "-PVERSION_NAME=${GITHUB_REF_NAME#v}"
