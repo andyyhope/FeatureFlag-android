@@ -16,9 +16,10 @@ two share. Each is one line on what differs and one on why.
 
 - **Containers are interfaces read by KSP, not macros on structs.** Kotlin has no macros;
   the `featureflag-ksp` processor generates `AppFlagsSpec` and `AppFlagsRefs` instead.
-- **The default is the property's getter, evaluated once.** A getter that reads another
-  flag sees its compiled default, and `Instant.now()` keeps its first value, so every way
-  of reading a flag agrees.
+- **The default is the property's getter, evaluated once.** It runs once for `pole.flags`,
+  `pole[ref]`, `pole.flow`, `pole.resolution`, the schema and `ref.defaultValue`;
+  `flagDefaults` runs it again on each read. A getter that reads another flag sees its
+  compiled default, and `Instant.now()` keeps its first value in the first group.
 - **`description` and `remoteKey` are annotation arguments; an empty `remoteKey` means
   none.** Annotation arguments cannot be null.
 - **A flag's handle is a `FlagRef` on the spec, not a `$` projected value.** Kotlin has no

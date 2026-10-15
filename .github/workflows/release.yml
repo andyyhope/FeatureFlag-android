@@ -16,6 +16,13 @@ name: Release
 #   4. Push a v-tag (vX.Y.Z) only from a commit on main whose Check and Instrumented runs are green,
 #      and whose VERSION_NAME in gradle.properties is that version plus -SNAPSHOT. A tag push runs
 #      the dry run, not the tests.
+#   5. After releasing in the Central Portal: delete the "not on Maven Central yet" sentences
+#      (README.md:72 and docs/GettingStarted.md:32, the paragraphs that say to build from a clone;
+#      docs/DifferencesFromIOS.md:187-188, "prepared for Maven Central but not on it yet"), then bump
+#      VERSION_NAME in gradle.properties to the next -SNAPSHOT (the docs checker ties the printed
+#      coordinates to it, so update the documented version in the same commit).
+# Never run with "publish" ticked before step 2. A tag push is only as safe as the tag: tag a green
+# main, because the dry run does not run the tests.
 on:
   push:
     tags: ['v[0-9]*']

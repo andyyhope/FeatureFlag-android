@@ -47,7 +47,7 @@ Paths index into arrays with a number, so `experiments.0.enabled` works:
 { "experiments": [ { "enabled": true } ] }
 ```
 
-**A flag with no `remoteKey` is not remotely overridable at all.** That is the safety
+**A flag with no `remoteKey` is not remotely overridable by the default mapping.** That is the safety
 property: a flag only moves remotely if you said it could, so nothing your backend sends
 can reach a flag you did not opt in. The default `DotPathMapper` enforces it. A custom
 mapper can return any declared key, so keep the rule in your mapper, as

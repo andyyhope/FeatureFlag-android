@@ -105,7 +105,7 @@ if (pole.flags.checkout.googlePay) {
 }
 ```
 
-Make it one instance your app shares. Reads are lock-free and safe from any thread, so it
+Make it one instance your app shares. The pole adds no locking, and reads are safe from any thread, so it
 does not need to live on the main thread — see [Observing changes](ObservingChanges.md).
 
 With no override stored anywhere, every flag reports its compiled default. That is

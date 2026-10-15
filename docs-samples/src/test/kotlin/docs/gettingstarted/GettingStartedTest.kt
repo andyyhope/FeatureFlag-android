@@ -61,6 +61,7 @@ class GettingStartedTest {
         val artifacts = blocks.flatMap { block -> coordinate.findAll(block).map { it.groupValues[1] } }.toSet()
 
         assertTrue(DocsSync.ARTIFACTS.containsAll(artifacts), "$artifacts")
-        assertTrue(blocks.first().contains("ksp(platform(\"com.andyyhope.featureflag:featureflag-bom:0.1.0\"))"))
+        val version = checkNotNull(System.getProperty("featureflag.docs.versionName")).removeSuffix("-SNAPSHOT")
+        assertTrue(blocks.first().contains("ksp(platform(\"com.andyyhope.featureflag:featureflag-bom:$version\"))"))
     }
 }

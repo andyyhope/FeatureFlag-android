@@ -139,11 +139,11 @@ same description.
 | [Sources and precedence](docs/SourcesAndPrecedence.md) | Stacking sources, and finding out which one won |
 | [Observing changes](docs/ObservingChanges.md) | Flows, Compose, and changes from another app |
 | [Remote overrides](docs/RemoteOverrides.md) | Dot paths, custom mappers, and why a bad field rejects everything |
-| [Validating a config](docs/ValidatingAConfig.md) | Checking a config file wires up every flag |
-| [Sharing with a companion app](docs/SharingWithACompanionApp.md) | What the schema carries, and what it costs |
+| [Validating a remote config](docs/ValidatingAConfig.md) | Checking a config file wires up every flag |
+| [Sharing flags with a companion app](docs/SharingWithACompanionApp.md) | What the schema carries, and what it costs |
 | [The bridge](docs/TheBridge.md) | The provider, the permission, and who may connect |
 | [Exporting and importing](docs/ExportingAndImporting.md) | JSON documents and QR codes |
-| [Sending signals to the host](docs/SendingSignals.md) | One-way instructions from the companion to your app |
+| [Sending signals to the host app](docs/SendingSignals.md) | One-way instructions from the companion to your app |
 | [Building a companion app](docs/BuildingACompanionApp.md) | An editor for another app's flags, in one composable |
 | [Troubleshooting](docs/Troubleshooting.md) | The failures worth recognising on sight |
 | [Differences from iOS](docs/DifferencesFromIOS.md) | What this port does differently, and why |
@@ -158,7 +158,7 @@ README to the code:
   they check the coordinates, versions and permission names, and compare the bridge's
   manifest with the library's own. Two in The bridge are quoted instead from the
   [sample apps](samples/README.md), which the build compiles;
-- copied by hand and not checked: the processor's error messages in Record flags and
+- copied by hand and not checked: the processor's error messages in Records and
   Troubleshooting, and the one `gradle.properties` line in Getting started and
   Troubleshooting.
 
@@ -211,7 +211,8 @@ Applying is strict and all-or-nothing: one bad field rejects the payload and rep
 problem at once, rather than leaving your app running on half a configuration.
 
 One deliberate allowance: JSON has a single number type, so a whole number satisfies a
-`Double` flag. That is exact widening, not coercion — `"true"` is still not a `Boolean`.
+`Double` or `Float` flag, and a decimal number narrows to a `Float` flag. That is numeric
+conversion only, not coercion between kinds — `"true"` is still not a `Boolean`.
 
 ## The companion app
 
@@ -280,7 +281,7 @@ running starts it.
 
 ## Reading from other threads
 
-`FlagPole` is not tied to the main thread. Reads are lock-free and safe from any thread,
+`FlagPole` is not tied to the main thread. The pole adds no locking, and reads are safe from any thread,
 because apps read flags off the main thread constantly. No flow hops to the main thread
 for you; collect where you need the values.
 
@@ -327,8 +328,8 @@ interface AppFlags {
 }
 ```
 
-Stored as JSON text, so every codec, the QR encoder and remote validation already handle
-it. Adding a field with a default keeps lists already stored readable; adding one without
+Stored as JSON text beside a published shape, so the QR encoder and every store already
+handle it, and import and remote validation check it field by field. Adding a field with a default keeps lists already stored readable; adding one without
 a default makes the app fall back to its default rather than read a half-built value. See
 [Records](docs/RecordFlags.md).
 
