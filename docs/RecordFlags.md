@@ -185,7 +185,7 @@ carries its entries, another list for a nested list, and a text field for the re
 
 The companion builds records from the shape, so it cannot write one the app will not
 read — a new record starts every enum field on a real entry rather than an empty string.
-Building a companion app covers the screens.
+[Building a companion app](BuildingACompanionApp.md) covers the screens.
 
 ### From a backend
 
@@ -322,4 +322,4 @@ val stored = pole.resolution(AppFlagsSpec.paymentMethods)
 `stored.box` is the text the source holds, and `stored.sourceName` the source holding
 it. The companion says so plainly rather than showing an empty list, since an empty list
 would invite you to add a record and wonder why nothing changed. See
-Troubleshooting.
+[Troubleshooting](Troubleshooting.md).

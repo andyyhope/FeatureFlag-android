@@ -223,7 +223,7 @@ interface with no type parameters and no supertypes. Each flag must be a `val` w
 getter, and each group a `val` without one. A flag cannot be called `flagDefaults`,
 `flagDescriptors`, `flagContainerDescription`, `createFlags`, `flagLookup` or `flagKeys`,
 because the generated code already uses those names. The exact messages are in
-Troubleshooting.
+[Troubleshooting](Troubleshooting.md).
 
 A group declared in another module is found by name: its `CheckoutFlagsSpec` has to
 exist, so apply the processor to that module too.

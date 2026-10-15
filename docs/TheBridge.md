@@ -21,7 +21,7 @@ you publish, the overrides file the bridge serves and the signals your app obser
 
 `featureflag-bridge` is a separate artifact because an exported provider should be
 something an app opts into. Add it to the host, beside `featureflag-android`, with its
-version from the BOM as Getting started shows:
+version from the BOM as [Getting started](GettingStarted.md) shows:
 
 <!-- snippet: bridge-install -->
 ```kts
@@ -206,7 +206,7 @@ it registers its observer. The source it returns writes and refreshes with block
 into the host, so make those off the main thread (`FlagEditingStore` does this for you);
 read `lastFailure` for the latest refresh failure, and `close()` it when done.
 `client.send(signal)` sends a signal — see
-Sending signals to the host app.
+[Sending signals to the host app](SendingSignals.md).
 
 ### A host that is not running
 

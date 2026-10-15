@@ -36,7 +36,7 @@ The JSON is meant to be read and hand-edited:
 Keys are sorted, and slashes are not escaped — a URL that reads `https:\/\/…` is not
 hand-editable, whatever the specification permits. The bytes are what the iOS library
 writes for the same values, so a document travels between the two platforms;
-Differences from iOS lists the edge cases.
+[Differences from iOS](DifferencesFromIOS.md#json-dates-and-numbers) lists the edge cases.
 
 There is no property-list form.
 

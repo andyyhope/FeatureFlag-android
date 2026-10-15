@@ -13,6 +13,10 @@ import docs.remoteoverrides.experimentsPayload
 import docs.remoteoverrides.onboardingPayload
 import docs.remoteoverrides.rejectionReport
 import docs.sharingwithacompanionapp.publishedSchema
+import docs.troubleshooting.hostNotFoundMessage
+import docs.troubleshooting.notPublishedMessage
+import docs.troubleshooting.permissionDeniedMessage
+import docs.troubleshooting.usesPermissionMissingMessage
 import docs.validatingaconfig.checkoutDefaultsReport
 import docs.validatingaconfig.draftAuditReport
 import docs.validatingaconfig.stagingDefaultsReport
@@ -45,5 +49,10 @@ object DocOutputs {
         "sharing-schema" to ::publishedSchema,
         // ExportingAndImporting.md
         "exporting-json" to ::exportedDocument,
+        // Troubleshooting.md
+        "troubleshooting-uses-permission-missing" to ::usesPermissionMissingMessage,
+        "troubleshooting-host-not-found" to ::hostNotFoundMessage,
+        "troubleshooting-permission-denied" to ::permissionDeniedMessage,
+        "troubleshooting-not-published" to ::notPublishedMessage,
     )
 }

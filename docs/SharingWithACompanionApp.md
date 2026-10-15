@@ -112,7 +112,7 @@ val types = schema.valueTypes // Map<FlagKey, FlagValueType>, for validating a p
 ```
 
 This is what the `featureflag-ui` module builds its editor from. If you are writing the
-companion, start at Building a companion app instead — it has
+companion, start at [Building a companion app](BuildingACompanionApp.md) instead — it has
 the screens already.
 
 ### What it costs
