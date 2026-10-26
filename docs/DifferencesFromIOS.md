@@ -4,7 +4,7 @@ Where this library departs from FeatureFlag for iOS, and why.
 
 ## Overview
 
-This is a port of [FeatureFlag](https://github.com/andyyhope/FeatureFlag) 0.12.0. The
+This is a port of [FeatureFlag](https://github.com/andyyhope/FeatureFlag) 0.12.1. The
 model is the same — a container of flags, an ordered stack of sources, a schema a
 companion app renders — and the formats are the same: an export, a QR code or a schema
 written on one platform reads on the other.

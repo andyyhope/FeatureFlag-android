@@ -1,7 +1,7 @@
 import Foundation
 
 // Writes every golden fixture the Kotlin port is tested against, using only the public
-// API of FeatureFlag 0.12.0 and Foundation. Run through scripts/sync-fixtures.sh.
+// API of FeatureFlag 0.12.1 and Foundation. Run through scripts/sync-fixtures.sh.
 
 let arguments = CommandLine.arguments.dropFirst()
 guard let outputPath = arguments.first else {
