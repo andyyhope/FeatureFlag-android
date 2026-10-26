@@ -2,7 +2,6 @@ package com.andyyhope.featureflag.remote
 
 import com.andyyhope.featureflag.errors.MessageText
 import com.andyyhope.featureflag.errors.RemoteOverrideException
-import com.andyyhope.featureflag.json.IsoDate
 import com.andyyhope.featureflag.json.JsonReader
 import com.andyyhope.featureflag.json.JsonSyntaxException
 import com.andyyhope.featureflag.json.JsonValue
@@ -143,7 +142,7 @@ internal val RemoteValue.shortDescription: String
         is RemoteValue.Double -> MessageText.double(value)
         is RemoteValue.String -> MessageText.quoted(value)
         is RemoteValue.Data -> "${value.size} bytes"
-        is RemoteValue.Date -> IsoDate.format(value)
-        is RemoteValue.Array -> "an array of ${value.size}"
-        is RemoteValue.Object -> "an object with ${value.size} field(s)"
+        is RemoteValue.Date -> MessageText.date(value)
+        is RemoteValue.Array -> MessageText.arrayOf(value.size)
+        is RemoteValue.Object -> MessageText.objectWith(value.size)
     }

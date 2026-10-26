@@ -170,10 +170,7 @@ public sealed class FlagMappingAuditException(message: String) : RuntimeExceptio
 }
 
 private fun comparisons(schema: FlagSchema, mapping: RemoteMapping, keys: List<FlagKey>): List<FlagDefaultComparison> {
-    val entries = LinkedHashMap<FlagKey, FlagSchema.Entry>()
-    for (entry in schema.flags) {
-        if (entry.key !in entries) entries[entry.key] = entry
-    }
+    val entries = schema.entriesByKey
     return keys.mapNotNull { key ->
         val incoming = mapping.boxes[key]
         val entry = entries[key]

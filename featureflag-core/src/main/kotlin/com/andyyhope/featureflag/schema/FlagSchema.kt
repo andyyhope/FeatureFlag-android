@@ -81,6 +81,10 @@ public data class FlagSchema(
             flags.forEach { entry -> entry.recordShape?.takeIf { it.isNotEmpty() }?.let { putIfAbsent(entry.key, it) } }
         }
 
+    /** The first entry per key, in schema order. Tolerates a duplicated key, as [valueTypes] does. */
+    internal val entriesByKey: Map<FlagKey, Entry>
+        get() = buildMap { flags.forEach { putIfAbsent(it.key, it) } }
+
     /** The document, exactly as Apple's `JSONSerialization` writes it. */
     public fun jsonBytes(): ByteArray {
         // A non-finite default has no JSON spelling; name the flag rather than fail somewhere deeper.

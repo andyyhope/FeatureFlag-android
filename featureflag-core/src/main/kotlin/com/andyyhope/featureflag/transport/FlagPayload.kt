@@ -122,25 +122,11 @@ public data class FlagPayload(
  */
 internal class ImportRules(schema: FlagSchema) {
 
-    val types: Map<FlagKey, FlagValueType> = buildMap {
-        for (entry in schema.flags) {
-            if (entry.key !in this) put(entry.key, entry.valueType)
-        }
-    }
+    val types: Map<FlagKey, FlagValueType> = schema.valueTypes
 
-    private val cases: Map<FlagKey, List<FlagValueBox>> = buildMap {
-        for (entry in schema.flags) {
-            val entryCases = entry.cases
-            if (!entryCases.isNullOrEmpty() && entry.key !in this) put(entry.key, entryCases)
-        }
-    }
+    private val cases: Map<FlagKey, List<FlagValueBox>> = schema.valueCases
 
-    private val shapes: Map<FlagKey, List<FlagRecordField>> = buildMap {
-        for (entry in schema.flags) {
-            val shape = entry.recordShape
-            if (!shape.isNullOrEmpty() && entry.key !in this) put(entry.key, shape)
-        }
-    }
+    private val shapes: Map<FlagKey, List<FlagRecordField>> = schema.recordShapes
 
     /** The one problem with [raw] for [key], or null when [box] (raw read as the declared type) can be applied. */
     fun problemWith(key: FlagKey, raw: JsonValue, box: FlagValueBox?): FlagImportProblem? {
