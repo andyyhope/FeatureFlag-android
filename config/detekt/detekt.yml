@@ -1,4 +1,4 @@
-# Yewki detekt config — extends detekt's defaults (buildUponDefaultConfig = true in build.gradle.kts).
+# FeatureFlag detekt config — extends detekt's defaults (buildUponDefaultConfig = true in build.gradle.kts).
 # Only the deltas live here: the noisy / Compose-hostile rules are turned off so the gate stays
 # high-signal; everything still active is grandfathered per-module by detekt-baseline.xml at adoption,
 # so detekt only fails on NEW violations.
