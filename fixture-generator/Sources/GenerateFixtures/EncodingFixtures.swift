@@ -27,6 +27,8 @@ enum EncodingFixtures {
         "ΟΔΟΣ", "ΟΔΟΣName", "σοφίαΣ",
         "ABE\u{301}c", "E\u{301}clair", "cafe\u{301}Bar",
         "x\u{1F1E6}\u{1F1FA}Y", "AB\u{1F44D}\u{1F3FD}c",
+        // Cased letters without an uppercase mapping
+        "aªBc", "ĸB",
     ]
 
     static func writeKeyEncoding(into writer: inout FixtureWriter) {
