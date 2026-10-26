@@ -1,5 +1,6 @@
 package com.andyyhope.featureflag.json
 
+import java.nio.charset.CharacterCodingException
 import kotlin.math.floor
 
 /**
@@ -22,8 +23,11 @@ internal object JsonReader {
     private const val MAX_DEPTH = 513
 
     fun parse(bytes: ByteArray): JsonValue {
-        val text = runCatching { bytes.decodeToString(throwOnInvalidSequence = true) }.getOrNull()
-            ?: throw JsonSyntaxException("The data is not valid UTF-8.")
+        val text = try {
+            bytes.decodeToString(throwOnInvalidSequence = true)
+        } catch (ignored: CharacterCodingException) {
+            throw JsonSyntaxException("The data is not valid UTF-8.")
+        }
         return Parser(text.removePrefix(BYTE_ORDER_MARK.toString())).document()
     }
 

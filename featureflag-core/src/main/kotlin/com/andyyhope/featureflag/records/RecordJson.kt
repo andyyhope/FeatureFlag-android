@@ -2,6 +2,7 @@ package com.andyyhope.featureflag.records
 
 import com.andyyhope.featureflag.errors.FlagSerializationException
 import com.andyyhope.featureflag.json.JsonReader
+import com.andyyhope.featureflag.json.JsonSyntaxException
 import com.andyyhope.featureflag.json.JsonValue
 import com.andyyhope.featureflag.json.JsonWriter
 import com.andyyhope.featureflag.values.FlagValueBox
@@ -49,7 +50,11 @@ internal object RecordJson {
     }
 
     private fun parse(text: String, shape: List<FlagRecordField>): List<Map<String, FlagValueBox>>? {
-        val parsed = runCatching { JsonReader.parse(text.encodeToByteArray()) }.getOrNull()
+        val parsed = try {
+            JsonReader.parse(text.encodeToByteArray())
+        } catch (ignored: JsonSyntaxException) {
+            null
+        }
         val objects = (parsed as? JsonValue.Array)?.items ?: return null
         return objects.map { item -> record(item as? JsonValue.Object ?: return null, shape) ?: return null }
     }

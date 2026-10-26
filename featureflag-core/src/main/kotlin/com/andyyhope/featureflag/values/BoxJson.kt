@@ -6,6 +6,7 @@ import com.andyyhope.featureflag.json.JsonValue
 import com.andyyhope.featureflag.json.JsonWriter
 import com.andyyhope.featureflag.json.StrictBase64
 import java.net.URI
+import java.net.URISyntaxException
 
 /**
  * The JSON representation of this value, as `FlagValueBox.jsonValue` writes it.
@@ -116,7 +117,11 @@ private fun parseUrl(text: String): URI? {
         parts[4]?.let { append('?').append(percentEncode(it.value, extra = "/?")) }
         parts[5]?.let { append('#').append(percentEncode(it.value, extra = "/?")) }
     }
-    return runCatching { URI(rebuilt) }.getOrNull()
+    return try {
+        URI(rebuilt)
+    } catch (ignored: URISyntaxException) {
+        null
+    }
 }
 
 private fun encodeAuthority(authority: String): String? {
