@@ -122,14 +122,21 @@ internal class ContainerGenerator(private val resolver: Resolver, private val co
     /**
      * KotlinPoet spells a core type out in full when the host's package declares another type of the same
      * simple name, and a flag called `com` then shadows the package that name starts with. Such a core type
-     * is imported under an alias instead, named as KotlinPoet names its own: `ValuesFlagCodecs`.
+     * is imported under an alias instead, named as KotlinPoet names its own: `ValuesFlagCodecs`, or with more
+     * of the package (`FeatureflagValuesFlagCodecs`, …) while the package declares that name too.
      */
     @OptIn(KspExperimental::class)
     private fun FileSpec.Builder.aliasCoreTypesNamedInPackage(packageName: String) {
         val declared = resolver.getDeclarationsFromPackage(packageName).map { it.simpleName.asString() }.toSet()
         for (type in EXPRESSION_TYPES.filter { it.simpleName in declared && it.packageName != packageName }) {
-            val prefix = type.packageName.substringAfterLast('.').replaceFirstChar(Char::uppercaseChar)
-            addAliasedImport(type, prefix + type.simpleName)
+            val segments = type.packageName.split('.').map { it.replaceFirstChar(Char::uppercaseChar) }
+            val alias = generateSequence(1) { it + 1 }
+                .map { count ->
+                    segments.takeLast(count).joinToString("") + type.simpleName +
+                        "_".repeat((count - segments.size).coerceAtLeast(0))
+                }
+                .first { it !in declared }
+            addAliasedImport(type, alias)
         }
     }
 

@@ -55,6 +55,8 @@ class NameShadowingTest {
         assertEquals("none", flags.read("ShadowFlags", "title"))
         assertEquals("HOST", (flags.read("ShadowFlags", "codecs") as Enum<*>).name)
         assertEquals("HOST", (flags.read("ShadowFlags", "descriptor") as Enum<*>).name)
+        assertEquals<Class<*>?>(load("FlagKey"), flags.read("ShadowFlags", "flagKey")?.javaClass)
+        assertEquals<Class<*>?>(load("ValuesFlagCodecs"), flags.read("ShadowFlags", "valuesCodecs")?.javaClass)
         val checkout = assertNotNull(flags.read("ShadowFlags", "checkout"))
         assertEquals(true, checkout.read("ShadowCheckoutFlags", "applePay"))
         @Suppress("UNCHECKED_CAST")
@@ -71,7 +73,7 @@ class NameShadowingTest {
         assertEquals(
             listOf(
                 "com", "title", "prefix", "encoding", "lookup", "flagPrefix", "codecs", "ref", "path", "node",
-                "descriptor", "groupDescriptor", "endpoints", "checkout",
+                "descriptor", "groupDescriptor", "flagKey", "valuesCodecs", "endpoints", "checkout",
             ),
             spec.flagDescriptors.map { it.propertyName },
         )
@@ -127,6 +129,8 @@ class NameShadowingTest {
             enum class IllegalStateException { HOST }
             enum class Keys { HOST }
             enum class Impl { HOST }
+            // Named like the alias the generated code would import FlagCodecs under.
+            enum class ValuesFlagCodecs { HOST }
 
             fun <T> com.andyyhope.featureflag.container.FlagLookup.read(
                 key: com.andyyhope.featureflag.values.FlagKey,
@@ -201,6 +205,12 @@ class NameShadowingTest {
 
                 @Flag(description = "The host's FlagGroupDescriptor")
                 val groupDescriptor: FlagGroupDescriptor get() = FlagGroupDescriptor.HOST
+
+                @Flag(description = "The host's FlagKey, a core name generated code uses only as a type")
+                val flagKey: FlagKey get() = FlagKey.HOST
+
+                @Flag(description = "The host's ValuesFlagCodecs")
+                val valuesCodecs: ValuesFlagCodecs get() = ValuesFlagCodecs.HOST
 
                 @Flag(description = "Endpoints")
                 val endpoints: FlagRecords<ShadowEndpoint>
