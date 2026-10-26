@@ -8,7 +8,7 @@
 
 **Tech Stack:** Kotlin 2.2.10, KSP 2.2.10-2.0.2 + kctfork, JUnit 4/kotlin.test, Robolectric, Swift 6.4 for `fixture-generator/`.
 
-**Spec:** `docs/superpowers/notes/2026-10-09-m1-followups.md`, sections "Small code fixes (any time)" and "Test gaps (any time)", plus two items THE USER chose on 2026-10-25 from "Decide before the M4 API freeze". THE USER's decisions:
+**Spec:** `docs/superpowers/notes/2026-10-09-m1-followups.md`, sections "Small code fixes (any time)" and "Test gaps (any time)", plus two items THE USER chose on 2026-10-25 from "Decide before the M4 API freeze". Tasks 13 and 14 were added on 2026-10-27 to track iOS 0.12.1 (andyyhope/FeatureFlag#50), which the parity review found uncovered. THE USER's decisions:
 - Rename only where Kotlin departs from iOS: the source label parameter becomes `name`. Everything else in "Naming drift" mirrors iOS and stays.
 - `FlagImportException.Malformed` gets a cause.
 - `docs/superpowers/` stays in the public repository.
@@ -23,8 +23,8 @@ An audit on 2026-10-25 found 28 of the note's 31 items open. The two QR items ar
 - No version bumps and no new dependencies.
 - **The API is frozen (M4 B3).** A task that changes a public signature runs `./gradlew apiDump releaseApiDump` and commits the dumps with the change. Its report names the change.
 - **Docs are checked.** `:docs-samples:testDebugUnitTest` (`DocsSyncTest`) must stay green. A doc fence that shows a changed call changes in the same commit as its snippet region.
-- `fixtures/` is only ever written by `scripts/sync-fixtures.sh`. The iOS repo (`/Users/andyyhope/Development/feature-flags`, tag `0.12.0`) is read-only.
-- Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Nothing is pushed until Task 13.
+- `fixtures/` is only ever written by `scripts/sync-fixtures.sh`. The iOS repo (`/Users/andyyhope/Development/feature-flags`, tag `0.12.0`) is read-only. Task 13 moves the fixture reference to iOS 0.12.1, read through the GitHub tag, not the local clone.
+- Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Nothing is pushed until Task 15.
 - **Definition of done for every task:** `./gradlew build detekt` is green, and every test the task names passes.
 
 ## Review Focus
@@ -368,7 +368,50 @@ Test-only, unless a test exposes a bug. If one does, stop and report it.
 - [ ] **Step 5: Run `./gradlew build detekt`**. Expected: PASS.
 - [ ] **Step 6: Commit**: `Correct a stale test comment and the detekt header, and keep the Swift coverage map as a note`
 
-### Task 13: Verify the branch and open the PR
+### Task 13: Generate the fixtures from FeatureFlag 0.12.1
+
+iOS 0.12.1 (andyyhope/FeatureFlag#50) changes only how the Swift macros spell their references. No wire format moved, so every golden should stay byte-identical except the version recorded in the manifest.
+
+**Files:**
+- Modify: `fixture-generator/Package.swift:13` (`exact: "0.12.1"`), `fixture-generator/Package.resolved` (via `swift package update` inside `fixture-generator/`)
+- Modify: the version string in `fixture-generator/Sources/GenerateFixtures/ManifestFixtures.swift:6`, and the "0.12.0" comments in `fixture-generator/Sources/GenerateFixtures/main.swift:4`, `fixture-generator/Sources/DecodeKotlinFixtures/main.swift:1` and `scripts/sync-fixtures.sh:2`
+- Regenerate: `fixtures/` (via `scripts/sync-fixtures.sh` only)
+- Modify: `docs/DifferencesFromIOS.md:7` ("a port of FeatureFlag 0.12.1")
+- Leave alone: the "quirk of FeatureFlag 0.12.0" sentences in `docs/RemoteOverrides.md`, `docs/RecordFlags.md`, `docs/DifferencesFromIOS.md:198`, `RemoteMapping.kt:80` and `KeyEncoding.kt:31`. They name the release where the behaviour was pinned, and 0.12.1 doesn't change it. Change one only if Step 3 shows that behaviour moved.
+
+- [ ] **Step 1: Bump the generator** and resolve: `cd fixture-generator && swift package update && swift build`. Expected: `Package.resolved` names 0.12.1.
+- [ ] **Step 2: Regenerate**: `scripts/sync-fixtures.sh`, then `git diff --stat fixtures/`. Expected: only `fixtures/manifest.json` changes, and only its version line. If any other fixture changes, stop and report the diff.
+- [ ] **Step 3: Check both directions**: `./gradlew :featureflag-core:test` (the goldens), then `swift run --package-path fixture-generator decode-kotlin-fixtures` (Swift 0.12.1 decodes what Kotlin wrote). Expected: both PASS. If a golden test asserts the manifest version, update it in this commit.
+- [ ] **Step 4: Update the docs line** and run `./gradlew :docs-samples:testDebugUnitTest`.
+- [ ] **Step 5: Commit**: `Generate the fixtures from FeatureFlag 0.12.1`
+
+### Task 14: Generated code survives host names that clash with the library's
+
+On iOS, 0.12.1 fixed generated code that broke when the host declared a type called `FeatureFlag`. Test whether the KSP output has the same weakness, and fix it if it does. The mechanisms differ:
+- KotlinPoet imports types, and an explicit import outranks a same-package declaration.
+- A qualified name that KotlinPoet writes out in full (`com.andyyhope.featureflag.…`) starts with `com`. Inside a generated class, a property, parameter or nested declaration named `com` takes precedence over the package.
+- A classifier nested in the container interface may be in scope inside generated classes that implement it.
+
+**Files:**
+- Create: `featureflag-ksp/src/test/kotlin/com/andyyhope/featureflag/ksp/NameShadowingTest.kt`
+- Modify, only if a test fails: `featureflag-ksp/src/main/kotlin/com/andyyhope/featureflag/ksp/{ContainerGenerator,RecordGenerator,TypeMapping}.kt`, plus every expansion snapshot the fix changes (read each changed snapshot before committing it)
+- Modify, only if the generator changed: `docs/DeclaringFlags.md` / `docs/Troubleshooting.md`, one sentence each, mirroring iOS's "nothing else can be shadowed" wording, and only where the Android docs make the same claim
+
+- [ ] **Step 1: Write the tests.** Compile with kctfork the way the other KSP tests do, then load the generated spec and run it. Use one package, `shadow`, that declares all of the following:
+  - top-level classes named after **every** library type the generated code references. List them from the KotlinPoet `ClassName`s and `MemberName`s in the generators and from `TypeMapping.ROOT` uses (for example `FlagRef`, `FlagDescriptor`, `FlagLookup`, `FlagCodecs`, `FlagRecordCodec`, `FlagRecordField`, `FlagContainerSpec`, `FlagKey`, `FlagValueBox`, `FlagRecords`);
+  - a container interface with a flag property named `com`, a nested interface named `FlagRef`, a `@FlagGroup`, and a `FlagRecords<…>` flag;
+  - a `@FlagRecord` with a field named `com`.
+
+  Tests:
+  - `generatedCodeCompilesBesideHostTypesNamedLikeTheLibrarys`: the compilation exits `OK`. Through a `SnapshotSource`, the values read back through `FlagPole(...).flags`, including the group and the record list, as iOS's `testContainerMacrosSurviveAHostTypeNamedFeatureFlag` does.
+  - `descriptorsAndRecordShapesSurviveTheClash`: property names and record field names read back in declaration order.
+  - `theHostileDeclarationsReallyAreInScope`: guards the guard, as iOS does. The same compilation also holds a hand-written source file in package `shadow` that uses the simple name `FlagRef` and gets the host's class.
+- [ ] **Step 2: Run them**: `./gradlew :featureflag-ksp:test --tests '*NameShadowingTest'`. If they pass, the generator is already safe: commit the test and go to Step 5.
+- [ ] **Step 3: Fix the generator for each failing case.** Use the smallest change: an import alias, `%M`/`%T` instead of a hand-spelled string, or a `this@`/backticked reference. Don't hand-qualify names.
+- [ ] **Step 4: Run `./gradlew :featureflag-ksp:test :featureflag-core:test`**. Expected: PASS. A snapshot that changed must still compile, and core's generated containers and goldens must not change.
+- [ ] **Step 5: Commit**: `Pin generated code against host names that clash with the library's` (if Step 3 ran: `Keep generated code working beside host names that clash with the library's`)
+
+### Task 15: Verify the branch and open the PR
 
 - [ ] **Step 1: Verify the whole branch**: `./gradlew build detekt --rerun-tasks --no-build-cache` and `./gradlew :dokkaGeneratePublicationHtml`. Record the unit test count and the warning count.
 - [ ] **Step 2: Run a whole-branch review** (superpowers:requesting-code-review) against `72710a0..HEAD`. Fix what it confirms, with tests.
