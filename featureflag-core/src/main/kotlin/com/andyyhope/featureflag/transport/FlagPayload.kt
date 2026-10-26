@@ -49,7 +49,7 @@ public data class FlagPayload(
                 "values" to JsonValue.Object(values.entries.associate { (key, box) -> key.rawValue to box.toJson() }),
             ),
         )
-        return JsonWriter.pretty(document).encodeToByteArray()
+        return JsonWriter.prettyBytes(document)
     }
 
     public companion object {

@@ -1,5 +1,8 @@
 package com.andyyhope.featureflag.json
 
+import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+
 /**
  * Writes JSON byte-for-byte as `JSONSerialization` does with `.sortedKeys` and
  * `.withoutEscapingSlashes`, compact or with `.prettyPrinted` as well.
@@ -14,6 +17,18 @@ package com.andyyhope.featureflag.json
 internal object JsonWriter {
 
     fun pretty(value: JsonValue): String = StringBuilder().also { it.writePretty(value, 0) }.toString()
+
+    /**
+     * [pretty] as UTF-8. A lone surrogate is written as U+FFFD, as Foundation does, where
+     * Kotlin's own encoder would write `?`.
+     */
+    fun prettyBytes(value: JsonValue): ByteArray {
+        val encoder = Charsets.UTF_8.newEncoder()
+            .onMalformedInput(CodingErrorAction.REPLACE)
+            .replaceWith(byteArrayOf(0xEF.toByte(), 0xBF.toByte(), 0xBD.toByte()))
+        val buffer = encoder.encode(CharBuffer.wrap(pretty(value)))
+        return ByteArray(buffer.remaining()).also { buffer.get(it) }
+    }
 
     fun compact(value: JsonValue): String = StringBuilder().also { it.writeCompact(value) }.toString()
 

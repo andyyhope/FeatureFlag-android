@@ -91,7 +91,7 @@ public data class FlagSchema(
         flags.firstOrNull { it.defaultValue.containsNonFiniteNumber }?.let {
             throw FlagSerializationException.NonFiniteNumber(it.key)
         }
-        return JsonWriter.pretty(toJson()).toByteArray(Charsets.UTF_8)
+        return JsonWriter.prettyBytes(toJson())
     }
 
     /**
