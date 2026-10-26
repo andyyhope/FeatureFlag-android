@@ -162,11 +162,17 @@ class TypeMappingTest {
 
     @Test fun unsupportedTypesSayWhichRecordIfAny() {
         val results = mapped(
-            source("Endpoint.kt", "@FlagRecord data class Endpoint(@FlagRecordKey val name: String)"),
+            source(
+                "Endpoint.kt",
+                "@FlagRecord data class Endpoint(@FlagRecordKey val name: String)\n" +
+                    "typealias Named<T> = List<T>\ntypealias Opt<T> = List<T>?",
+            ),
             source(
                 "Holder.kt",
                 """
                 interface HolderFlags {
+                    val opt: Opt<String>
+                    val star: Named<*>
                     val set: Set<String>
                     val intKeyed: Map<Int, String>
                     val uuid: java.util.UUID
@@ -175,6 +181,8 @@ class TypeMappingTest {
                 """,
             ),
         )
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("opt"))
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("star"))
         assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("set"))
         assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("intKeyed"))
         assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("uuid"))

@@ -226,4 +226,39 @@ class ContainerGenerationTest {
         val group = defaults.javaClass.getMethod("getGroup").invoke(defaults)
         assertEquals(true, group.javaClass.getMethod("getShared").invoke(group))
     }
+
+    @Test fun flagsTypedThroughGenericTypealiasesCompileAndKeepTheirDefaults() {
+        val compiled = compile(
+            source(
+                "AliasedFlags.kt",
+                """
+                typealias Named<T> = List<T>
+                typealias Table<T> = Map<String, List<T>>
+                typealias Rows<R> = FlagRecords<R>
+
+                @FlagRecord
+                data class Row(@FlagRecordKey val name: String, val weight: Int = 1)
+
+                @FlagContainer
+                interface AliasedFlags {
+                    @Flag(description = "Names")
+                    val named: Named<String> get() = listOf("a", "b")
+
+                    @Flag(description = "Table")
+                    val table: Table<Int> get() = mapOf("x" to listOf(1, 2))
+
+                    @Flag(description = "Rows")
+                    val rows: Rows<Row> get() = FlagRecords()
+                }
+                """,
+            ),
+        )
+        assertTrue(compiled.succeeded, compiled.problems)
+        val spec = compiled.classLoader.loadClass("app.AliasedFlagsSpec").getField("INSTANCE").get(null)
+        val defaults = spec.javaClass.getMethod("getFlagDefaults").invoke(spec)
+        fun default(name: String) = defaults.javaClass.getMethod("get" + name.replaceFirstChar(Char::uppercase)).invoke(defaults)
+        assertEquals(listOf("a", "b"), default("named"))
+        assertEquals(mapOf("x" to listOf(1, 2)), default("table"))
+        assertTrue((default("rows") as List<*>).isEmpty())
+    }
 }
