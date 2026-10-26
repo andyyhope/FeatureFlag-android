@@ -244,11 +244,16 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
 
     /** Reports every `@FlagGroup` that leads back to its own container; returns the containers involved. */
     fun cycles(containers: List<KSClassDeclaration>): Set<KSClassDeclaration> {
-        val byName = containers.associateBy { it.qualifiedName?.asString() }
+        val inRound = containers.associateBy { it.qualifiedName?.asString() }
+        // An incremental build leaves unchanged containers out of the round, but a cycle can run through them.
+        val byName = { name: String? ->
+            inRound[name] ?: name?.let { resolver.getClassDeclarationByName(resolver.getKSNameFromString(it)) }
+                ?.takeIf { it.hasAnnotation(Names.FLAG_CONTAINER) }
+        }
         val cyclic = mutableSetOf<KSClassDeclaration>()
         for (container in containers) {
             for ((property, target) in groups(container)) {
-                val path = pathBack(container, byName[target], byName, listOf(container)) ?: continue
+                val path = pathBack(container, byName(target), byName, listOf(container)) ?: continue
                 cyclic += container
                 report(
                     Diagnostics.groupCycle(
@@ -285,14 +290,14 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
     private fun pathBack(
         start: KSClassDeclaration,
         next: KSClassDeclaration?,
-        byName: Map<String?, KSClassDeclaration>,
+        byName: (String?) -> KSClassDeclaration?,
         path: List<KSClassDeclaration>,
     ): List<KSClassDeclaration>? = when {
         next == null -> null
         next == start -> path + next
         next in path -> null
         else -> groups(next).firstNotNullOfOrNull { (_, target) ->
-            pathBack(start, byName[target], byName, path + next)
+            pathBack(start, byName(target), byName, path + next)
         }
     }
 

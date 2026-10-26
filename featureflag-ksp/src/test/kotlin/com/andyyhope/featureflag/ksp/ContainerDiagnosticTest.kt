@@ -1,5 +1,14 @@
 package com.andyyhope.featureflag.ksp
 
+import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.processing.SymbolProcessor
+import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.configureKsp
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import java.io.OutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -473,4 +482,49 @@ class ContainerDiagnosticTest {
             "Empty", "AppFlags",
         ),
     )
+
+    /** An incremental build: only `A` is in the round, and `B`, the other half of the cycle, is not. */
+    @OptIn(ExperimentalCompilerApi::class)
+    @Test
+    fun aCycleThroughAContainerOutsideTheRoundIsFound() {
+        var cyclic: Set<String>? = null
+        val provider = SymbolProcessorProvider { environment ->
+            object : SymbolProcessor {
+                override fun process(resolver: Resolver): List<KSAnnotated> {
+                    val a = resolver.getClassDeclarationByName(resolver.getKSNameFromString("app.A")) as KSClassDeclaration
+                    cyclic = Checks(resolver, environment.logger).cycles(listOf(a))
+                        .map { it.simpleName.asString() }.toSet()
+                    return emptyList()
+                }
+            }
+        }
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                source(
+                    "AppFlags.kt",
+                    """
+                    @FlagContainer
+                    interface A {
+                        @FlagGroup(description = "b")
+                        val b: B
+                    }
+
+                    @FlagContainer
+                    interface B {
+                        @FlagGroup(description = "a")
+                        val a: A
+                    }
+                    """,
+                ),
+            )
+            inheritClassPath = true
+            messageOutputStream = OutputStream.nullOutputStream()
+            configureKsp(useKsp2 = true) { symbolProcessorProviders += provider }
+        }.compile()
+        assertEquals(setOf("A"), cyclic)
+        assertTrue(
+            Diagnostics.groupCycle("b", "A", "A → B → A") in result.messages,
+            result.messages,
+        )
+    }
 }
