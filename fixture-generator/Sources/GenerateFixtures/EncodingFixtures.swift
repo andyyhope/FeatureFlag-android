@@ -23,6 +23,10 @@ enum EncodingFixtures {
         "PDFViewer", "XY", "x", "maxItems", "featureToggles", "v2", "V2", "V2Beta", "version2Point1",
         "already-kebab", "snake_Case", "ÄpfelÖl", "naïveCafé", "straßeGroß", "ΑλφαΒήτα", "日本Go",
         "isİstanbul", "a1B2c3", "HTML5Parser", "x2Y", "ABC123def", "lowerUPPERLower",
+        // Graphemes and final sigma
+        "ΟΔΟΣ", "ΟΔΟΣName", "σοφίαΣ",
+        "ABE\u{301}c", "E\u{301}clair", "cafe\u{301}Bar",
+        "x\u{1F1E6}\u{1F1FA}Y", "AB\u{1F44D}\u{1F3FD}c",
     ]
 
     static func writeKeyEncoding(into writer: inout FixtureWriter) {
