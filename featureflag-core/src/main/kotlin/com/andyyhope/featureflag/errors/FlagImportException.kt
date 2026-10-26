@@ -38,9 +38,10 @@ public data class FlagImportProblem(
 }
 
 /** Why a document or a scanned code was not applied. Nothing is applied when this is thrown. */
-public sealed class FlagImportException(message: String) : RuntimeException(message) {
+public sealed class FlagImportException(message: String, cause: Throwable? = null) : RuntimeException(message, cause) {
 
-    public class Malformed(public val reason: String) : FlagImportException("The document could not be read: $reason.")
+    public class Malformed(public val reason: String, cause: Throwable? = null) :
+        FlagImportException("The document could not be read: $reason.", cause)
 
     public class UnsupportedFormatVersion(public val version: Long) : FlagImportException(
         "The document is format version $version; this build understands " +

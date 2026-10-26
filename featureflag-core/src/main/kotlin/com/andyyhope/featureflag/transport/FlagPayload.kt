@@ -96,8 +96,8 @@ public data class FlagPayload(
             // JsonReader accepts what JSONSerialization accepts, a byte order mark and a trailing comma included.
             val parsed = try {
                 JsonReader.parse(bytes)
-            } catch (ignored: JsonSyntaxException) {
-                null
+            } catch (error: JsonSyntaxException) {
+                throw FlagImportException.Malformed("not a JSON object", error)
             }
             return parsed as? JsonValue.Object ?: throw FlagImportException.Malformed("not a JSON object")
         }

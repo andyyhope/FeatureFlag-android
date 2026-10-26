@@ -1,13 +1,20 @@
 package com.andyyhope.featureflag.errors
 
+import com.andyyhope.featureflag.json.JsonSyntaxException
+import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.transport.FlagPayload
 import com.andyyhope.featureflag.values.FlagKey
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class FlagImportExceptionTest {
 
     private val pageSize = FlagKey("page-size")
     private val tier = FlagKey("tier")
+    private val schema = FlagSchema(flags = emptyList())
 
     @Test
     fun aTypeMismatchNamesTheFlagTheTypeAndTheValue() {
@@ -95,4 +102,18 @@ class FlagImportExceptionTest {
         assertEquals("missing values", error.reason)
         assertEquals("The document could not be read: missing values.", error.message)
     }
+
+    private fun decodeMalformed(json: String): FlagImportException.Malformed =
+        assertFailsWith { FlagPayload.decode(json.encodeToByteArray(), schema) }
+
+    @Test
+    fun aDocumentThatIsNotJsonKeepsTheReadersError() {
+        val error = decodeMalformed("{ nope")
+
+        assertEquals("not a JSON object", error.reason)
+        assertIs<JsonSyntaxException>(error.cause)
+    }
+
+    @Test
+    fun aMalformedDocumentThatIsValidJsonHasNoCause() = assertNull(decodeMalformed("[]").cause)
 }
