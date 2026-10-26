@@ -252,7 +252,7 @@ The processor recognises the annotation by its full name, so an alias works, and
 writing it out in full as `@com.andyyhope.featureflag.Flag(…)`.
 
 Generated code imports every type and function it names, so nothing else in the library
-can be shadowed this way, including by a type of your own named like one of the library's.
+can be shadowed by a type of your own, including one named like one of the library's.
 
 ### Saying what a set of flags is for
 
