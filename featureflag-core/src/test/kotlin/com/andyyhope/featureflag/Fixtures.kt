@@ -26,12 +26,16 @@ object Fixtures {
     /** Rows of a `.tsv` fixture, every field unescaped with [unescape]. */
     fun tsv(path: String): List<List<String>> {
         val text = text(path)
-        if (text.isEmpty()) return emptyList()
+        check(text.isNotEmpty()) { "Empty fixture $path; run scripts/sync-fixtures.sh" }
         return text.removeSuffix("\n").split("\n").map { line -> line.split("\t").map(::unescape) }
     }
 
     /** Lines of a `.txt` fixture written without a trailing newline. */
-    fun lines(path: String): List<String> = text(path).split("\n")
+    fun lines(path: String): List<String> {
+        val text = text(path)
+        check(text.isNotEmpty()) { "Empty fixture $path; run scripts/sync-fixtures.sh" }
+        return text.split("\n")
+    }
 
     /** The TSV escaping rule shared with the Swift generator: `\\`, `\t`, `\n` and `\u00xx`. */
     fun unescape(field: String): String = buildString {
