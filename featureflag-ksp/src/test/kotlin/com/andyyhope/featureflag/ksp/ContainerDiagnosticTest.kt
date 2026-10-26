@@ -351,6 +351,22 @@ class ContainerDiagnosticTest {
         ),
     )
 
+    @Test fun aContainerInsideAPrivateInterfaceIsRefused() = assertEquals(
+        listOf(at(12, Diagnostics.containerPrivate("Inner"))),
+        errors(
+            """
+            private interface Outer {
+                @FlagContainer
+                interface Inner {
+                    @Flag(description = "Beta")
+                    val beta: Boolean get() = false
+                }
+            }
+            """,
+            "Inner",
+        ),
+    )
+
     @Test fun aGroupCycleIsReportedOnEveryGroupInIt() = assertEquals(
         listOf(
             at(13, "'@FlagGroup' 'b' makes 'A' contain itself (A → B → A), so its flags could never finish building"),
