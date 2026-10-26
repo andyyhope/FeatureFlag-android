@@ -180,7 +180,12 @@ public data class FlagSchema(
                 malformed("not a JSON object", e)
             }
             val fields = (root as? JsonValue.Object)?.fields ?: malformed("not a JSON object")
-            val version = (fields["formatVersion"] as? JsonValue.Integer)?.value ?: malformed("missing formatVersion")
+            val version = when (val raw = fields["formatVersion"]) {
+                is JsonValue.Integer -> raw.value
+                // Swift reads the field with `as? Int`, which turns an NSNumber `true` into 1.
+                is JsonValue.Bool -> if (raw.value) 1L else 0L
+                else -> malformed("missing formatVersion")
+            }
             if (version != CURRENT_FORMAT_VERSION.toLong()) throw FlagSchemaException.UnsupportedFormatVersion(version)
             val entries = (objects(fields["flags"]) ?: malformed("missing flags")).map(::entry)
             duplicateKeys(entries).keys.minByOrNull { it.rawValue }?.let {
