@@ -51,6 +51,15 @@ internal interface RatioAuditFlags {
     val ratios: FlagRecords<AuditRatio> get() = FlagRecords()
 }
 
+@FlagRecord
+internal data class AuditPrecise(val name: String, val value: Double)
+
+@FlagContainer
+internal interface PreciseAuditFlags {
+    @Flag(description = "Precise values", remoteKey = "config.precise")
+    val precise: FlagRecords<AuditPrecise> get() = FlagRecords()
+}
+
 class FlagMappingAuditTest {
 
     private val complete = """{ "featureToggles": { "onboarding": true }, "config": { "pageSize": 25, "tier": "pro" } }"""
@@ -153,6 +162,16 @@ class FlagMappingAuditTest {
         val payload = """{ "config": { "ratios": [ { "name": "x", "ratio": 1e300 } ] } }"""
         val audit = FlagMappingAudit(RatioAuditFlagsSpec, payload.toByteArray())
         assertEquals(keys("ratios"), audit.mismatched.map { it.key })
+        assertEquals(Kind.TypeMismatch, audit.mismatched.single().kind)
+        assertEquals(emptyList(), audit.applied)
+        assertFalse(audit.isComplete)
+    }
+
+    @Test
+    fun aRecordFieldThatUnderflowsToNegativeInfinityIsAMismatch() {
+        val payload = """{ "config": { "precise": [ { "name": "x", "value": -1e400 } ] } }"""
+        val audit = FlagMappingAudit(PreciseAuditFlagsSpec, payload.toByteArray())
+        assertEquals(keys("precise"), audit.mismatched.map { it.key })
         assertEquals(Kind.TypeMismatch, audit.mismatched.single().kind)
         assertEquals(emptyList(), audit.applied)
         assertFalse(audit.isComplete)
