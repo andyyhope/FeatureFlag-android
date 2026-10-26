@@ -256,7 +256,10 @@ class ContainerGenerationTest {
         assertTrue(compiled.succeeded, compiled.problems)
         val spec = compiled.classLoader.loadClass("app.AliasedFlagsSpec").getField("INSTANCE").get(null)
         val defaults = spec.javaClass.getMethod("getFlagDefaults").invoke(spec)
-        fun default(name: String) = defaults.javaClass.getMethod("get" + name.replaceFirstChar(Char::uppercase)).invoke(defaults)
+        fun default(name: String): Any? {
+            val getter = "get" + name.replaceFirstChar(Char::uppercase)
+            return defaults.javaClass.getMethod(getter).invoke(defaults)
+        }
         assertEquals(listOf("a", "b"), default("named"))
         assertEquals(mapOf("x" to listOf(1, 2)), default("table"))
         assertTrue((default("rows") as List<*>).isEmpty())
