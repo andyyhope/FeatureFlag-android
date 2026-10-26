@@ -4,6 +4,7 @@ import com.andyyhope.featureflag.errors.FlagImportException
 import com.andyyhope.featureflag.errors.FlagImportProblem
 import com.andyyhope.featureflag.errors.FlagSerializationException
 import com.andyyhope.featureflag.errors.MessageText
+import com.andyyhope.featureflag.json.AppleNumberFormat
 import com.andyyhope.featureflag.json.IsoDate
 import com.andyyhope.featureflag.json.JsonReader
 import com.andyyhope.featureflag.json.JsonSyntaxException
@@ -17,11 +18,7 @@ import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import com.andyyhope.featureflag.values.toBox
 import com.andyyhope.featureflag.values.toJson
-import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
 import java.time.Instant
-import kotlin.math.abs
 
 /**
  * A set of flag overrides, ready to be written to a file, shared, or carried in a QR code.
@@ -187,14 +184,5 @@ private fun JsonValue.importDescription(): String = when (this) {
 private fun numberDescription(value: Double): String {
     if (value.isInfinite()) return if (value > 0.0) "inf" else "-inf"
     if (value == 0.0) return if (1.0 / value < 0.0) "-0" else "0"
-    val rounded = BigDecimal(value).round(MathContext(NUMBER_DIGITS, RoundingMode.HALF_EVEN))
-    val exponent = rounded.precision() - rounded.scale() - 1
-    if (exponent < -4 || exponent >= NUMBER_DIGITS) {
-        val digits = rounded.unscaledValue().abs().toString().trimEnd('0')
-        val mantissa = if (digits.length > 1) "${digits[0]}.${digits.substring(1)}" else digits
-        val sign = if (rounded.signum() < 0) "-" else ""
-        val exponentSign = if (exponent < 0) "-" else "+"
-        return "$sign${mantissa}e$exponentSign${abs(exponent).toString().padStart(2, '0')}"
-    }
-    return rounded.stripTrailingZeros().toPlainString()
+    return AppleNumberFormat.g(value, NUMBER_DIGITS)
 }

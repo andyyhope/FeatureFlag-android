@@ -15,28 +15,35 @@ import kotlin.math.abs
  */
 internal object AppleNumberFormat {
 
-    private const val SIGNIFICANT_DIGITS = 17
     private const val LOWEST_FIXED_EXPONENT = -4
-    private val PRECISION = MathContext(SIGNIFICANT_DIGITS, RoundingMode.HALF_EVEN)
+    private const val JSON_DIGITS = 17
 
     fun format(value: Double): String {
         require(value.isFinite()) { "JSON cannot represent $value" }
+        return g(value, JSON_DIGITS)
+    }
+
+    /**
+     * C's `%.<significantDigits>g` of the exact binary value of a finite [value], with trailing
+     * zeros (and a trailing `.`) removed.
+     */
+    fun g(value: Double, significantDigits: Int): String {
         if (value == 0.0) return if (1.0 / value < 0) "-0" else "0"
-        val rounded = BigDecimal(value).round(PRECISION)
+        val rounded = BigDecimal(value).round(MathContext(significantDigits, RoundingMode.HALF_EVEN))
         val exponent = rounded.precision() - rounded.scale() - 1
-        return if (exponent < LOWEST_FIXED_EXPONENT || exponent >= SIGNIFICANT_DIGITS) {
-            scientific(rounded, exponent)
+        return if (exponent < LOWEST_FIXED_EXPONENT || exponent >= significantDigits) {
+            val sign = if (rounded.signum() < 0) "-" else ""
+            sign + exponential(rounded.unscaledValue().abs().toString().trimEnd('0'), exponent)
         } else {
             stripTrailingZeros(rounded.toPlainString())
         }
     }
 
-    private fun scientific(rounded: BigDecimal, exponent: Int): String {
-        val digits = rounded.unscaledValue().abs().toString().trimEnd('0')
+    /** `d.ddd` + `e` + sign + at least two exponent digits, as C writes an exponent. Unsigned. */
+    fun exponential(digits: String, exponent: Int): String {
         val mantissa = if (digits.length == 1) digits else "${digits[0]}.${digits.substring(1)}"
-        val sign = if (rounded.signum() < 0) "-" else ""
         val exponentSign = if (exponent < 0) '-' else '+'
-        return "$sign${mantissa}e$exponentSign${abs(exponent).toString().padStart(2, '0')}"
+        return "${mantissa}e$exponentSign${abs(exponent).toString().padStart(2, '0')}"
     }
 
     private fun stripTrailingZeros(plain: String): String =
