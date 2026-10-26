@@ -105,6 +105,8 @@ two share. Each is one line on what differs and one on why.
 - **Source names are "Companion" and "Remote", not "App Group".** They are what
   `resolution(…).sourceName` reports for `SharedPreferencesSource.companion(context)` and
   `RemoteOverrideSource`.
+- **A pole refuses a remote source whose keys it does not have.** iOS resolves nothing and
+  says nothing.
 - **App Groups, Darwin notifications and the foreground re-read are replaced by the
   bridge.** Android has no shared container between apps; an exported, signature-guarded
   provider is the door instead.
