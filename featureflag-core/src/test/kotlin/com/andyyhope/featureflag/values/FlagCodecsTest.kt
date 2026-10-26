@@ -74,4 +74,29 @@ class FlagCodecsTest {
         FlagCodecs.byteArray.decode(box)!![1] = 9
         assertEquals(FlagValueBox.Data(byteArrayOf(1, 2)), box)
     }
+
+    private enum class Plan(override val flagRawValue: String) : FlagStringEnum {
+        Free("free"),
+        Gratis("free"),
+        Pro("pro"),
+    }
+
+    private enum class Level(override val flagRawValue: Long) : FlagIntEnum {
+        Low(1),
+        Minimum(1),
+        High(2),
+    }
+
+    @Test
+    fun twoEntriesSharingARawValueDecodeToTheFirst() {
+        val plans = FlagCodecs.stringEnum(Plan.entries)
+        assertEquals(Plan.Free, plans.decode(FlagValueBox.String("free")))
+        assertEquals(FlagValueBox.String("free"), plans.encode(Plan.Gratis))
+        assertEquals(listOf(FlagValueBox.String("free"), FlagValueBox.String("pro")), plans.cases)
+
+        val levels = FlagCodecs.intEnum(Level.entries)
+        assertEquals(Level.Low, levels.decode(FlagValueBox.Int(1)))
+        assertEquals(FlagValueBox.Int(1), levels.encode(Level.Minimum))
+        assertEquals(listOf(FlagValueBox.Int(1), FlagValueBox.Int(2)), levels.cases)
+    }
 }
