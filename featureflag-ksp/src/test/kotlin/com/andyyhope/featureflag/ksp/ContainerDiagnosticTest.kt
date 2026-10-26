@@ -483,10 +483,9 @@ class ContainerDiagnosticTest {
         ),
     )
 
-    /** An incremental build: only `A` is in the round, and `B`, the other half of the cycle, is not. */
+    /** An incremental build: only `A` is in the round. Returns the names `cycles` finds, and the compiler messages. */
     @OptIn(ExperimentalCompilerApi::class)
-    @Test
-    fun aCycleThroughAContainerOutsideTheRoundIsFound() {
+    private fun cyclesFromA(body: String): Pair<Set<String>?, String> {
         var cyclic: Set<String>? = null
         val provider = SymbolProcessorProvider { environment ->
             object : SymbolProcessor {
@@ -499,32 +498,79 @@ class ContainerDiagnosticTest {
             }
         }
         val result = KotlinCompilation().apply {
-            sources = listOf(
-                source(
-                    "AppFlags.kt",
-                    """
-                    @FlagContainer
-                    interface A {
-                        @FlagGroup(description = "b")
-                        val b: B
-                    }
-
-                    @FlagContainer
-                    interface B {
-                        @FlagGroup(description = "a")
-                        val a: A
-                    }
-                    """,
-                ),
-            )
+            sources = listOf(source("AppFlags.kt", body))
             inheritClassPath = true
             messageOutputStream = OutputStream.nullOutputStream()
             configureKsp(useKsp2 = true) { symbolProcessorProviders += provider }
         }.compile()
-        assertEquals(setOf("A"), cyclic)
-        assertTrue(
-            Diagnostics.groupCycle("b", "A", "A → B → A") in result.messages,
-            result.messages,
+        return cyclic to result.messages
+    }
+
+    @Test
+    fun aCycleThroughAContainerOutsideTheRoundIsFound() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+
+            @FlagContainer
+            interface B {
+                @FlagGroup(description = "a")
+                val a: A
+            }
+            """,
         )
+        assertEquals(setOf("A"), cyclic)
+        assertTrue(Diagnostics.groupCycle("b", "A", "A → B → A") in messages, messages)
+    }
+
+    @Test
+    fun aCycleBesideTheRoundThatDoesNotReturnToItIsNotReportedAndTerminates() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+
+            @FlagContainer
+            interface B {
+                @FlagGroup(description = "c")
+                val c: C
+            }
+
+            @FlagContainer
+            interface C {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+            """,
+        )
+        assertEquals(emptySet(), cyclic)
+        assertTrue("makes 'A' contain itself" !in messages, messages)
+    }
+
+    @Test
+    fun aGroupTargetOutsideTheRoundThatIsNotAContainerIsIgnored() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "p")
+                val p: P
+            }
+
+            interface P {
+                @FlagGroup(description = "a")
+                val a: A
+            }
+            """,
+        )
+        assertEquals(emptySet(), cyclic)
+        assertTrue("contain itself" !in messages, messages)
     }
 }
