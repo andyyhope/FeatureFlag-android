@@ -58,7 +58,7 @@ internal sealed interface ContainerMember {
  * Writes `XRefs` and `XSpec` for one `@FlagContainer` interface `X`. Everything it reads has already
  * passed [Checks.container], so an unsupported type here is a bug in the checks, not in the input.
  */
-internal class ContainerGenerator(resolver: Resolver, private val codeGenerator: CodeGenerator) {
+internal class ContainerGenerator(private val resolver: Resolver, private val codeGenerator: CodeGenerator) {
 
     private val types = TypeMapping(resolver)
 
@@ -98,7 +98,7 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
     }
 
     private fun group(property: KSPropertyDeclaration, files: MutableList<KSFile>): ContainerMember.Group {
-        val target = property.type.resolve().expanded().declaration as KSClassDeclaration
+        val target = property.type.resolve().expanded(resolver).declaration as KSClassDeclaration
         target.containingFile?.let(files::add)
         return ContainerMember.Group(
             name = property.simpleName.asString(),
