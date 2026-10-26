@@ -202,6 +202,40 @@ class ContainerDiagnosticTest {
         ),
     )
 
+    @Test fun aNullableGroupIsRejected() = assertEquals(
+        listOf(at(16, "'checkout' is a '@FlagGroup', but 'CheckoutFlags?' is not a '@FlagContainer' interface")),
+        errors(
+            """
+            @FlagContainer
+            interface CheckoutFlags
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "Checkout")
+                val checkout: CheckoutFlags?
+            }
+            """,
+        ),
+    )
+
+    @Test fun aGroupThroughANullableTypealiasIsRejectedLikeANullableGroup() = assertEquals(
+        listOf(at(18, "'checkout' is a '@FlagGroup', but 'MaybeCheckout' is not a '@FlagContainer' interface")),
+        errors(
+            """
+            @FlagContainer
+            interface CheckoutFlags
+
+            typealias MaybeCheckout = CheckoutFlags?
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "Checkout")
+                val checkout: MaybeCheckout
+            }
+            """,
+        ),
+    )
+
     @Test fun aGroupWithAGetterIsRejected() = assertEquals(
         listOf(at(16, "'checkout' is a '@FlagGroup', so the generated code provides it: remove its getter")),
         errors(

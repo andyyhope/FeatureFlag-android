@@ -175,7 +175,7 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
         if (type.isRecordList(resolver)) return report(Diagnostics.recordListNeedsFlag(name), property)
         if (!property.isAbstract()) return report(Diagnostics.groupHasGetter(name), property)
         val target = type.expanded(resolver).declaration as? KSClassDeclaration
-        val isContainer = target != null && !type.isMarkedNullable && target.classKind == ClassKind.INTERFACE &&
+        val isContainer = target != null && !type.expanded(resolver).isMarkedNullable && target.classKind == ClassKind.INTERFACE &&
             target.hasAnnotation(Names.FLAG_CONTAINER)
         if (target == null || !isContainer) return report(Diagnostics.groupNotAContainer(name, type.render()), property)
         val spec = Names.generatedName(target, "Spec")
