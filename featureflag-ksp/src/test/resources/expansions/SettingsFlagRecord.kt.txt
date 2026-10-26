@@ -15,6 +15,7 @@ import kotlin.collections.Map
 import kotlin.collections.buildMap
 import kotlin.collections.listOf
 import kotlin.lazy
+import kotlin.let
 
 public object SettingsFlagRecord : FlagRecordCodec<Settings> {
   private val themeCodec: FlagCodec<String> = FlagCodecs.string

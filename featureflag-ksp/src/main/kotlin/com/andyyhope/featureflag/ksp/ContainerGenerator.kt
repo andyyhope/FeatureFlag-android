@@ -1,5 +1,6 @@
 package com.andyyhope.featureflag.ksp
 
+import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Resolver
@@ -111,10 +112,25 @@ internal class ContainerGenerator(private val resolver: Resolver, private val co
 
     fun generate(model: ContainerModel) {
         FileSpec.builder(model.spec)
+            .apply { aliasCoreTypesNamedInPackage(model.spec.packageName) }
             .addType(refs(model))
             .addType(spec(model))
             .build()
             .writeTo(codeGenerator, aggregating = false, originatingKSFiles = model.originatingFiles)
+    }
+
+    /**
+     * KotlinPoet spells a core type out in full when the host's package declares another type of the same
+     * simple name, and a flag called `com` then shadows the package that name starts with. Such a core type
+     * is imported under an alias instead, named as KotlinPoet names its own: `ValuesFlagCodecs`.
+     */
+    @OptIn(KspExperimental::class)
+    private fun FileSpec.Builder.aliasCoreTypesNamedInPackage(packageName: String) {
+        val declared = resolver.getDeclarationsFromPackage(packageName).map { it.simpleName.asString() }.toSet()
+        for (type in EXPRESSION_TYPES.filter { it.simpleName in declared && it.packageName != packageName }) {
+            val prefix = type.packageName.substringAfterLast('.').replaceFirstChar(Char::uppercaseChar)
+            addAliasedImport(type, prefix + type.simpleName)
+        }
     }
 
     private fun refs(model: ContainerModel): TypeSpec {
@@ -206,9 +222,9 @@ internal class ContainerGenerator(private val resolver: Resolver, private val co
                     member.remoteKey, member.name, member.name,
                 )
                 is ContainerMember.Group -> body.add(
-                    "%T.Group(%T(%S, %T(%M(%S)), %S, %T.flagDescriptors.map { it.prefixed(%S) })),\n",
+                    "%T.Group(%T(%S, %T(%M(%S)), %S, %T.flagDescriptors.%M { it.prefixed(%S) })),\n",
                     Names.FLAG_SCHEMA_NODE, Names.FLAG_GROUP_DESCRIPTOR, member.name, Names.FLAG_KEY_PATH,
-                    Names.LIST_OF, member.name, member.description, member.spec, member.name,
+                    Names.LIST_OF, member.name, member.description, member.spec, Names.COLLECTION_MAP, member.name,
                 )
             }
         }
@@ -280,6 +296,12 @@ internal class ContainerGenerator(private val resolver: Resolver, private val co
 
     private companion object {
         val KEYS: ClassName = ClassName("", "Keys")
+
+        /** The core types the generated code names in an expression, where a member can shadow a package. */
+        val EXPRESSION_TYPES: List<ClassName> = listOf(
+            Names.FLAG_REF, Names.FLAG_CODECS, Names.FLAG_KEY_PATH, Names.FLAG_SCHEMA_NODE, Names.FLAG_DESCRIPTOR,
+            Names.FLAG_GROUP_DESCRIPTOR,
+        )
     }
 }
 

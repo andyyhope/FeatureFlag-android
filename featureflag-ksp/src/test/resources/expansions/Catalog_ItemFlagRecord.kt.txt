@@ -13,8 +13,10 @@ import kotlin.String
 import kotlin.collections.List
 import kotlin.collections.Map
 import kotlin.collections.buildMap
+import kotlin.collections.firstOrNull
 import kotlin.collections.listOf
 import kotlin.lazy
+import kotlin.let
 
 public object Catalog_ItemFlagRecord : FlagRecordCodec<Catalog.Item> {
   private val skuCodec: FlagCodec<String> = FlagCodecs.string

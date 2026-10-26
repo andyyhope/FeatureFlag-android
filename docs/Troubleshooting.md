@@ -169,6 +169,9 @@ interface AliasedFlags {
 }
 ```
 
+Generated code imports everything it names, so nothing else can be shadowed this way, not
+even by a type of your own named like one of the library's.
+
 ### A remote payload appears to do nothing
 
 Ask what the apply reported:

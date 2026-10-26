@@ -16,6 +16,7 @@ import kotlin.Int
 import kotlin.String
 import kotlin.collections.List
 import kotlin.collections.listOf
+import kotlin.collections.map
 import kotlin.lazy
 
 public open class AppFlagsRefs(
