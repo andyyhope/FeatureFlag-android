@@ -108,6 +108,12 @@ class RemoteOverrideSourceTest {
 
     private fun makeSource() = RemoteOverrideSource(RemoteDemoFlagsSpec)
 
+    @Test
+    fun nameLabelsTheSourceAsOnIos() {
+        assertEquals("CDN", RemoteOverrideSource(RemoteDemoFlagsSpec, name = "CDN").sourceName)
+        assertEquals("CDN", RemoteOverrideSource(FlagSchema.of(RemoteDemoFlagsSpec), name = "CDN").sourceName)
+    }
+
     // Dot paths
 
     @Test

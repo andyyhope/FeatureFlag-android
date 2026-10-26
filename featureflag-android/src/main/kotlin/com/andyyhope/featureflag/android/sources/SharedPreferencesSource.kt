@@ -29,8 +29,10 @@ import kotlinx.coroutines.flow.Flow
  */
 public class SharedPreferencesSource(
     private val preferences: SharedPreferences,
-    override val sourceName: String = "SharedPreferences",
+    name: String = "SharedPreferences",
 ) : MutableFlagValueSource, AutoCloseable {
+
+    override val sourceName: String = name
 
     private val emitter = FlagChangeEmitter()
 
