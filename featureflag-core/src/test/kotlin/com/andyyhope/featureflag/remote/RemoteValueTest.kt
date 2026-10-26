@@ -246,4 +246,12 @@ class RemoteValueTest {
         assertEquals("an array of 2", RemoteValue.Array(listOf(RemoteValue.Null, RemoteValue.Null)).shortDescription)
         assertEquals("an object with 1 field(s)", RemoteValue.Object(mapOf("a" to RemoteValue.Null)).shortDescription)
     }
+
+    @Test
+    fun anIndexInNonAsciiDigitsFindsNothing() {
+        val value = decoded("""{"items":["a","b"]}""")
+        assertEquals(RemoteValue.String("b"), value.valueAt("items.1"))
+        assertNull(value.valueAt("items.\u0661"))
+        assertNull(value.valueAt("items.\uFF11"))
+    }
 }

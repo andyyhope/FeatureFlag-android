@@ -53,7 +53,10 @@ public sealed interface RemoteValue {
             if (component.isEmpty()) continue
             current = when (val node = current) {
                 is Object -> node.value[component]
-                is Array -> component.toIntOrNull()?.let { node.value.getOrNull(it) }
+                // Swift's Int(_:) takes an optional sign and ASCII digits; Kotlin's toIntOrNull would
+                // also accept Arabic-Indic and fullwidth ones.
+                is Array -> component.takeIf { text -> text.removePrefix("+").removePrefix("-").all { it in '0'..'9' } }
+                    ?.toIntOrNull()?.let { node.value.getOrNull(it) }
                 else -> null
             } ?: return null
         }
