@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.map
  *   every key, so choose it once.
  * @param applicationName what a companion app calls this app. It goes into [schema]; null
  *   leaves the name out, as Swift does for an app without a display name.
+ * @throws IllegalArgumentException when a [RemoteOverrideSource] in [sources] describes a key this
+ *   pole does not have, for example when that source was built with a different [keyEncoding].
  */
 public class FlagPole<F : Any>(
     public val spec: FlagContainerSpec<F>,
