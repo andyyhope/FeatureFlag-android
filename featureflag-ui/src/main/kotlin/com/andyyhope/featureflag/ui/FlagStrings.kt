@@ -59,6 +59,9 @@ internal object FlagStrings {
     const val OK = "OK"
     const val CANCEL = "Cancel"
 
+    /** Under a flag with no override whose value a host source, such as a bundled config, supplies. */
+    fun fromSource(name: String): String = "From $name"
+
     fun listSummary(count: Int, typeName: String): String = "$count $typeName${plural(count)}"
 
     fun recordCount(count: Int): String = "$count record${plural(count)}"
@@ -95,6 +98,7 @@ internal object FlagStrings {
     const val DETAILS = "Details"
     const val KEY = "Key"
     const val DEFAULT = "Default"
+    const val VALUE_FROM = "Value from"
     const val REMOTELY_OVERRIDABLE = "Remotely overridable"
     const val NO = "No"
     const val NO_REMOTE_KEY_FOOTER =

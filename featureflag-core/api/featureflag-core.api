@@ -339,6 +339,7 @@ public final class com/andyyhope/featureflag/pole/FlagPole {
 	public final fun removeOverride (Lcom/andyyhope/featureflag/container/FlagRef;)V
 	public final fun resolution (Lcom/andyyhope/featureflag/container/FlagRef;)Lcom/andyyhope/featureflag/pole/FlagResolution;
 	public final fun resolution-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;)Lcom/andyyhope/featureflag/pole/FlagResolution;
+	public final fun schemaWithEffectiveValues ()Lcom/andyyhope/featureflag/schema/FlagSchema;
 	public final fun setOverride (Lcom/andyyhope/featureflag/container/FlagRef;Ljava/lang/Object;)V
 	public final fun setOverride-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueBox;)V
 }
@@ -764,9 +765,10 @@ public final class com/andyyhope/featureflag/schema/FlagSchema$Companion {
 }
 
 public final class com/andyyhope/featureflag/schema/FlagSchema$Entry {
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1-aMrcr5g ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Lcom/andyyhope/featureflag/values/FlagValueType;
@@ -774,12 +776,15 @@ public final class com/andyyhope/featureflag/schema/FlagSchema$Entry {
 	public final fun component6 ()Ljava/util/List;
 	public final fun component7 ()Ljava/lang/String;
 	public final fun component8 ()Ljava/util/List;
-	public final fun copy-obhb5iA (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;)Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;
-	public static synthetic fun copy-obhb5iA$default (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;
+	public final fun component9 ()Lcom/andyyhope/featureflag/values/FlagValueBox;
+	public final fun copy-BxU9pl0 (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/lang/String;)Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;
+	public static synthetic fun copy-BxU9pl0$default (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/values/FlagValueBox;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCases ()Ljava/util/List;
 	public final fun getDefaultValue ()Lcom/andyyhope/featureflag/values/FlagValueBox;
 	public final fun getDescription ()Ljava/lang/String;
+	public final fun getEffectiveSource ()Ljava/lang/String;
+	public final fun getEffectiveValue ()Lcom/andyyhope/featureflag/values/FlagValueBox;
 	public final fun getKey-aMrcr5g ()Ljava/lang/String;
 	public final fun getPropertyPath ()Ljava/util/List;
 	public final fun getRecordShape ()Ljava/util/List;

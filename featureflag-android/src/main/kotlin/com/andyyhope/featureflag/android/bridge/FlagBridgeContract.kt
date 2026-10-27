@@ -95,7 +95,10 @@ public object FlagBridgeContract {
     /** The signature permission that guards the provider of the host installed as [hostPackage]. */
     public fun permission(hostPackage: String): String = "$hostPackage.permission.FEATURE_FLAG_BRIDGE"
 
-    /** `content://<authority>/schema`: the published schema file, opened read-only. */
+    /**
+     * `content://<authority>/schema`: the published schema file, opened read-only. `publishSchema(context)`
+     * also notifies it, so a companion can observe it to read a republished schema at once.
+     */
     public fun schemaUri(hostPackage: String): Uri = Uri.parse("content://${authority(hostPackage)}/schema")
 
     /** `content://<authority>/overrides`: observed for changes to the host's companion overrides. */

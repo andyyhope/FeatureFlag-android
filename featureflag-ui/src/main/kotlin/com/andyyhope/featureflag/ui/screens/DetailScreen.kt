@@ -76,6 +76,10 @@ internal fun DetailScreen(
             item(key = "details") { FlagSectionHeader(text = FlagStrings.DETAILS) }
             item(key = "key") { DetailLine(label = FlagStrings.KEY, value = entry.key.rawValue) }
             item(key = "default") { DetailLine(label = FlagStrings.DEFAULT, value = FlagValueText.format(entry.defaultValue)) }
+            val hostSource = if (isOverridden) null else store.sourceName(entry)
+            if (hostSource != null) {
+                item(key = "source") { DetailLine(label = FlagStrings.VALUE_FROM, value = hostSource) }
+            }
             item(key = "remote") {
                 DetailLine(
                     label = FlagStrings.REMOTELY_OVERRIDABLE,

@@ -88,8 +88,24 @@ public class FlagEditingStore(
 
     // Values
 
-    /** The value in effect: the stored override when the host would use it, otherwise the default. */
-    public fun value(entry: FlagSchema.Entry): FlagValueBox = usableOverride(entry) ?: entry.defaultValue
+    /**
+     * The value in effect: the stored override when the host would use it, otherwise the effective
+     * value the host published for the flag (from a bundled or remote config, say), otherwise the
+     * compiled default.
+     */
+    public fun value(entry: FlagSchema.Entry): FlagValueBox =
+        usableOverride(entry) ?: usableEffectiveValue(entry) ?: entry.defaultValue
+
+    /**
+     * Where [value] comes from, named as the host's `FlagPole.resolution` names it: this store's
+     * source when the flag is overridden, the host's source when the value is the effective value it
+     * published, such as "Remote", and null when it is the compiled default.
+     */
+    public fun sourceName(entry: FlagSchema.Entry): String? = when {
+        isOverridden(entry) -> source.sourceName
+        usableEffectiveValue(entry) != null -> entry.effectiveSource
+        else -> null
+    }
 
     /** Whether the flag holds an override the host would use. */
     public fun isOverridden(entry: FlagSchema.Entry): Boolean = usableOverride(entry) != null
@@ -108,7 +124,7 @@ public class FlagEditingStore(
         write { source.setBox(entry.key, box) }
     }
 
-    /** Clears [entry]'s override, so it falls back to the host's default. */
+    /** Clears [entry]'s override, so it falls back to the host's effective value, or its default. */
     public suspend fun reset(entry: FlagSchema.Entry) {
         write { source.setBox(entry.key, null) }
     }
@@ -201,12 +217,17 @@ public class FlagEditingStore(
      * The stored value, but only when the host would use it: of the declared type and, for an
      * enum, one of its cases. A stale or hand-edited value reads as no override at all.
      */
-    private fun usableOverride(entry: FlagSchema.Entry): FlagValueBox? {
-        val box = source.box(entry.key, entry.valueType) ?: return null
-        if (!box.matches(entry.valueType)) return null
-        val cases = entry.cases
-        if (!cases.isNullOrEmpty() && box !in cases) return null
-        return box
+    private fun usableOverride(entry: FlagSchema.Entry): FlagValueBox? =
+        source.box(entry.key, entry.valueType)?.takeIf { entry.accepts(it) }
+
+    /** The published effective value, checked the same way: the schema came from another app. */
+    private fun usableEffectiveValue(entry: FlagSchema.Entry): FlagValueBox? =
+        entry.effectiveValue?.takeIf { entry.accepts(it) }
+
+    private fun FlagSchema.Entry.accepts(box: FlagValueBox): Boolean {
+        if (!box.matches(valueType)) return false
+        val cases = cases
+        return cases.isNullOrEmpty() || box in cases
     }
 
     private fun overriddenValues(): Map<FlagKey, FlagValueBox> {

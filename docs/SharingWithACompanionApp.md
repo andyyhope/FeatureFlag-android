@@ -98,6 +98,76 @@ one app has something readable to head the list with only when you say so:
 val pole = FlagPole(AppFlagsSpec, sources = sources, applicationName = "Demo (Staging)")
 ```
 
+### The values your app actually reads
+
+A flag's compiled default is often not what your app reads. A bundled or fetched config
+beneath the companion's overrides can change it, and a companion that showed only the
+default would show the wrong value for every flag a config sets.
+
+So `publishSchema` also writes what the rest of your stack says about each flag: the value
+it reads while it has no override, as `effectiveValue`, and the name of the source that
+supplied it, as `effectiveSource`. It leaves out the pole's top mutable source, where
+overrides are written and the companion's edits land: the companion reads that itself, and
+a value copied from it would outlive its reset. A flag that only its default supplies gets
+neither field, and neither does a value the pole would not read, such as an enum entry the
+flag does not have. Here a config named "Staging config" turns Google Pay on:
+
+<!-- output: sharing-schema-effective -->
+```json
+{
+  "applicationName" : "Demo",
+  "flags" : [
+    {
+      "defaultValue" : false,
+      "description" : "Offer Google Pay",
+      "effectiveSource" : "Staging config",
+      "effectiveValue" : true,
+      "key" : "checkout.google-pay",
+      "propertyPath" : [
+        "checkout",
+        "googlePay"
+      ],
+      "valueType" : "bool"
+    }
+  ],
+  "formatVersion" : 1,
+  "generatedAt" : "2026-01-01T00:00:00Z",
+  "groups" : [
+    {
+      "description" : "Checkout",
+      "propertyPath" : [
+        "checkout"
+      ]
+    }
+  ]
+}
+```
+
+The companion shows that value until you override the flag, with "From Staging config"
+under it, and resetting the override goes back to it rather than to the default. What is
+published is `pole.schemaWithEffectiveValues()`; `pole.schema` and `FlagSchema.of`, which
+imports and remote payloads are checked against, never carry the two fields.
+
+The values are read when you publish. When a source beneath the overrides changes later —
+a remote config arrives, or `EnvironmentConfiguration` loads another environment — publish
+again:
+
+<!-- snippet: sharing-republish -->
+```kotlin
+config.apply(payload) // a source beneath the overrides changed,
+pole.publishSchema(context) // so publish again: an open companion reads it at once
+```
+
+`publishSchema(context)` announces every publish on the bridge, so a companion that is open
+reconnects and shows the new schema straight away, its `applicationName` included. A
+companion also reconnects when it comes back to the foreground, and a second after it sends
+a signal, which covers a host that restarts itself in answer to one, such as an environment
+switch.
+
+Both fields are optional, and the `formatVersion` is still 1. A companion from before them
+ignores them and shows the defaults, as it always did; a companion reading a schema from an
+older host finds neither and does the same.
+
 ### Reading it back
 
 A companion built with `featureflag-ui` gets the schema from the bridge when it connects,

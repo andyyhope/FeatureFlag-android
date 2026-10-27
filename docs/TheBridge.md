@@ -208,6 +208,13 @@ read `lastFailure` for the latest refresh failure, and `close()` it when done.
 `client.send(signal)` sends a signal — see
 [Sending signals to the host app](SendingSignals.md).
 
+The host announces every `publishSchema(context)` as a change to
+`FlagBridgeContract.schemaUri(hostPackage)`. A companion of your own can register a
+`ContentObserver` there and call `connect()` again to pick up a republished schema, with its
+new effective values and `applicationName`. `FlagCompanion` does this for you. A host from
+before 0.1.1 announces nothing, so reconnect when the companion comes back to the foreground
+as well.
+
 ### A host that is not running
 
 Android starts an app to answer a call to its provider, so a companion never needs the

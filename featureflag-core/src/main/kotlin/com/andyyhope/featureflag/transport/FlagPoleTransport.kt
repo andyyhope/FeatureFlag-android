@@ -10,12 +10,17 @@ import java.io.File
  * [directory], creating the directory if needed. The write is atomic, so a reader never
  * sees half a file.
  *
+ * The schema carries each flag's effective value beneath the overrides, as of this call (see
+ * [FlagPole.schemaWithEffectiveValues]), so a companion shows what the app actually reads from
+ * a bundled or remote config rather than the compiled default.
+ *
  * Call this on launch: a companion has no other way to learn what flags exist, what they
- * are called, or what types they hold.
+ * are called, or what types they hold. Call it again whenever a source beneath the overrides
+ * changes, such as after a remote config is applied.
  *
  * @return the file written.
  */
-public fun FlagPole<*>.publishSchema(directory: File): File = schema.write(directory)
+public fun FlagPole<*>.publishSchema(directory: File): File = schemaWithEffectiveValues().write(directory)
 
 /**
  * Every flag some source supplies a value for, ready to serialise.

@@ -114,7 +114,10 @@ scope.launch {
 ```
 
 A flow emits only when the value changes, so there is nothing to deduplicate, and
-`collectLatest` abandons a load the moment the environment changes again.
+`collectLatest` abandons a load the moment the environment changes again. If a companion
+app edits this app, publish the schema again once a load completes, so it shows the new
+environment's values — see
+[The values your app actually reads](SharingWithACompanionApp.md#the-values-your-app-actually-reads).
 
 Give that flag no `remoteKey`. A config could otherwise set the environment, which would
 mean the app should have loaded a different config — and loading *that* could set it back.

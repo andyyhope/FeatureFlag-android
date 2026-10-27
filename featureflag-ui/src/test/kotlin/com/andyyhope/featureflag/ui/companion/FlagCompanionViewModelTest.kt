@@ -97,6 +97,38 @@ class FlagCompanionViewModelTest {
         assertEquals(FlagSignalDelay.Instant, viewModel.signals.delay.value)
     }
 
+    @Test
+    fun theSchemaWatchHearsEachAnnouncementUntilClosed() {
+        // publishSchema(context) in the host notifies this URI; FlagBridgeContract.schemaUri is the shared name.
+        var heard = 0
+        val watch = checkNotNull(watchSchema(context.contentResolver, host) { heard++ })
+        val schemaUri = FlagBridgeContract.schemaUri(host)
+
+        context.contentResolver.notifyChange(schemaUri, null)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1, heard)
+
+        watch.close()
+        context.contentResolver.notifyChange(schemaUri, null)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1, heard)
+    }
+
+    @Test
+    fun theSchemaWatchIgnoresOtherHosts() {
+        var heard = 0
+        val watch = checkNotNull(watchSchema(context.contentResolver, host) { heard++ })
+        try {
+            context.contentResolver.notifyChange(FlagBridgeContract.schemaUri("com.example.other"), null)
+            context.contentResolver.notifyChange(FlagBridgeContract.overridesUri(host), null)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertEquals(0, heard)
+        } finally {
+            watch.close()
+        }
+    }
+
     private enum class Ping : FlagSignal { Ping }
 
     /** Runs the main looper until the session has left Connecting; connect hops to IO and back. */

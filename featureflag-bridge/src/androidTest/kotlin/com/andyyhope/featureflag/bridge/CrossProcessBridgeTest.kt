@@ -2,6 +2,9 @@ package com.andyyhope.featureflag.bridge
 
 import android.app.ActivityManager
 import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.Process
 import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
@@ -9,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import com.andyyhope.featureflag.android.bridge.FlagBridgeClient
 import com.andyyhope.featureflag.android.bridge.FlagBridgeConnection
+import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.android.bridge.FlagBridgeSource
 import com.andyyhope.featureflag.errors.FlagImportException
@@ -28,6 +32,8 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.net.URI
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -187,6 +193,29 @@ class CrossProcessBridgeTest {
         assertTrue(client.send(BridgeTestSignal.Slow, timeout = 10.seconds))
     }
 
+    // Republishing
+
+    @Test
+    fun aSchemaTheHostRepublishesIsAnnouncedInTheCompanionsProcess() = runBlocking<Unit> {
+        client.connect()
+        val announced = CountDownLatch(1)
+        val looper = HandlerThread("schema-watch").apply { start() }
+        val observer = object : ContentObserver(Handler(looper.looper)) {
+            override fun onChange(selfChange: Boolean) {
+                announced.countDown()
+            }
+        }
+        context.contentResolver.registerContentObserver(FlagBridgeContract.schemaUri(host), false, observer)
+        try {
+            assertTrue(client.send(BridgeTestSignal.Republish))
+
+            assertTrue(announced.await(ANNOUNCE_TIMEOUT_SECONDS, TimeUnit.SECONDS), "The host's announcement never arrived.")
+        } finally {
+            context.contentResolver.unregisterContentObserver(observer)
+            looper.quitSafely()
+        }
+    }
+
     // Delayed signals
 
     @Test
@@ -302,5 +331,6 @@ class CrossProcessBridgeTest {
         const val POLL_MILLIS = 50L
         const val ABSENT_HOST = "com.andyyhope.featureflag.absent"
         const val SOURCE_THREAD_NAME = "FlagBridgeSource"
+        const val ANNOUNCE_TIMEOUT_SECONDS = 10L
     }
 }

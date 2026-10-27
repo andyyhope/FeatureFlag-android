@@ -70,6 +70,21 @@ public class FlagPole<F : Any>(
     public val changes: Flow<FlagChange>
         get() = resolver.changes
 
+    /**
+     * [schema], with each flag's effective value beneath the overrides as of now: what the flag reads
+     * while the top mutable source (where [setOverride] writes, and where a companion's edits land)
+     * holds nothing for it, and the name of the source that supplied it. A flag that only its compiled
+     * default supplies, or whose value the pole would not decode (an enum entry the flag lacks, or a
+     * number with no JSON spelling), carries neither. This is what `publishSchema` writes.
+     */
+    public fun schemaWithEffectiveValues(): FlagSchema = schema.copy(
+        flags = schema.flags.map { entry ->
+            val resolution = resolver.resolutionBeneathOverrides(entry.key, entry.valueType)
+            val box = resolution.box?.takeIf { entry.accepts(it) }
+            if (box == null) entry else entry.copy(effectiveValue = box, effectiveSource = resolution.sourceName)
+        },
+    )
+
     /** Every flag this pole knows about, flattened out of the container tree, depth first. */
     public val descriptors: List<FlagDescriptor>
         get() = spec.flagDescriptors.flattened()
@@ -171,3 +186,10 @@ public class FlagPole<F : Any>(
 }
 
 private fun <T> FlagRef<T>.defaultBox(): FlagValueBox = codec.encode(defaultValue)
+
+/** Whether the pole would read [box] as this flag's value rather than fall back to its default. */
+private fun FlagSchema.Entry.accepts(box: FlagValueBox): Boolean {
+    if (box.containsNonFiniteNumber) return false
+    val cases = cases
+    return cases.isNullOrEmpty() || box in cases
+}

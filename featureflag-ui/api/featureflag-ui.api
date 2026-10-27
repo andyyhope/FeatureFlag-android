@@ -86,6 +86,7 @@ public final class com/andyyhope/featureflag/ui/editing/FlagEditingStore {
 	public static synthetic fun sections$default (Lcom/andyyhope/featureflag/ui/editing/FlagEditingStore;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/List;
 	public final fun setRecords (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setValue (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Lcom/andyyhope/featureflag/values/FlagValueBox;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun sourceName (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Ljava/lang/String;
 	public final fun value (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Lcom/andyyhope/featureflag/values/FlagValueBox;
 }
 
