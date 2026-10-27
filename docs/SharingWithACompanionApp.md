@@ -143,6 +143,11 @@ flag does not have. Here a config named "Staging config" turns Google Pay on:
 }
 ```
 
+So the published file now holds values, not only the shape of your flags: what a bundled or
+fetched config sets, remote-config values included. The bridge serves it only to a companion
+signed with your key, and a release build without the bridge serves it to nothing, but treat it
+as you would those values.
+
 The companion shows that value until you override the flag, with "From Staging config"
 under it, and resetting the override goes back to it rather than to the default. What is
 published is `pole.schemaWithEffectiveValues()`; `pole.schema` and `FlagSchema.of`, which

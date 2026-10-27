@@ -54,7 +54,8 @@ to the host, reports anything in the way with a message someone can act on, and 
 Overrides and Flags as tabs. It reconnects whenever the companion comes back to the
 foreground, whenever the host announces a republished schema, and a second after it sends a
 signal, so a reinstalled host with new flags, or one that switched environment and
-republished under a new name, is picked up without restarting the companion. None of it is specific to
+republished under a new name, is picked up without restarting the companion. That reload, like
+any call through the bridge, starts the host again if the signal made it exit. None of it is specific to
 any host, so none of it is worth writing twice. It draws with your `MaterialTheme`.
 
 Two things make the connection possible, and both are described in

@@ -3,6 +3,7 @@ package com.andyyhope.featureflag.ui.companion
 import com.andyyhope.featureflag.android.bridge.FlagBridgeConnection
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.sources.MutableFlagValueSource
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -210,11 +211,14 @@ internal class FlagCompanionSession(
         watchHost()
     }
 
-    /** Once a host has answered, its provider exists, so it can be watched. Tried once. */
+    /**
+     * Once a host has answered, its provider exists, so it can be watched. Watched once; a
+     * registration that fails is tried again on the next connection.
+     */
     private fun watchHost() {
         if (watchingHost) return
-        watchingHost = true
         hostWatch = observeHost(::reload)
+        watchingHost = hostWatch != null
     }
 
     private suspend fun refresh(source: CompanionSource) {
@@ -240,4 +244,16 @@ internal class FlagCompanionSession(
         /** Time for a host that restarts itself on a signal, after replying to it, to have gone. */
         val SIGNAL_SETTLE: Duration = 1.seconds
     }
+}
+
+/**
+ * [send], followed by [FlagCompanionSession.onSignalSent] once it returns: how the companion sends a
+ * signal. The session is driven from [scope]'s thread, the main thread in the app, and a caller may
+ * be on another, so the hook is launched there. A send that throws schedules nothing.
+ */
+internal fun FlagCompanionSession.reloadingAfter(
+    scope: CoroutineScope,
+    send: suspend (FlagSignal, Duration) -> Boolean,
+): suspend (FlagSignal, Duration) -> Boolean = { signal, delay ->
+    send(signal, delay).also { scope.launch { onSignalSent() } }
 }

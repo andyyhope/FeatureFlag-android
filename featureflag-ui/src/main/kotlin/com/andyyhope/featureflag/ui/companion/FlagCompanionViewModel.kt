@@ -16,7 +16,6 @@ import com.andyyhope.featureflag.android.bridge.FlagBridgeSource
 import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.sources.MutableFlagValueSource
 import com.andyyhope.featureflag.ui.signals.FlagSignalsModel
-import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
 /**
@@ -48,9 +47,9 @@ internal class FlagCompanionViewModel(
      * signals model sends with. Cancelling the caller withdraws a delayed signal from the host.
      * Once it returns, the session reloads the host's schema, which the signal may have changed.
      */
-    suspend fun send(signal: FlagSignal, delay: Duration): Boolean =
-        // The session is driven from the main thread; a caller may be on another.
-        client.send(signal, delay = delay).also { viewModelScope.launch { session.onSignalSent() } }
+    suspend fun send(signal: FlagSignal, delay: Duration): Boolean = sendThenReload(signal, delay)
+
+    private val sendThenReload = session.reloadingAfter(viewModelScope) { signal, delay -> client.send(signal, delay = delay) }
 
     /** Owned here so a pending send and Recent survive configuration changes. */
     internal val signals: FlagSignalsModel = FlagSignalsModel(send = ::send, scope = viewModelScope)

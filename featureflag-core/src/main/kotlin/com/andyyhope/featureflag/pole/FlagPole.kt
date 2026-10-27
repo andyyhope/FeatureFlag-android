@@ -76,6 +76,9 @@ public class FlagPole<F : Any>(
      * holds nothing for it, and the name of the source that supplied it. A flag that only its compiled
      * default supplies, or whose value the pole would not decode (an enum entry the flag lacks, or a
      * number with no JSON spelling), carries neither. This is what `publishSchema` writes.
+     *
+     * It reads every source beneath the top mutable one, once per flag, on the calling thread, as
+     * any read of a flag does. A source whose read throws makes this throw.
      */
     public fun schemaWithEffectiveValues(): FlagSchema = schema.copy(
         flags = schema.flags.map { entry ->

@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.andyyhope.featureflag.android.bridge.FlagBridgeConnection
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.ui.editing.CompanionSchemas
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
@@ -26,12 +27,14 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import java.util.concurrent.Executors
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -353,6 +356,25 @@ class FlagCompanionSessionTest {
     }
 
     @Test
+    fun aWatchThatCouldNotStartIsTriedAgainOnTheNextConnection() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(grown))
+        host.watchable = false
+        val session = session(host)
+        session.start()
+        runCurrent()
+        assertEquals(1, host.watches)
+
+        host.watchable = true
+        session.onForeground()
+        runCurrent()
+        assertEquals(2, host.watches)
+
+        host.announce()
+        runCurrent()
+        assertEquals(3, host.connects, "the second watch hears the host")
+    }
+
+    @Test
     fun anAnnouncementDuringAConnectionReadsTheSchemaAgainAfterIt() = runTest {
         // The connection under way may have read the schema from before the announcement.
         val host = Host(
@@ -428,6 +450,40 @@ class FlagCompanionSessionTest {
         runCurrent()
 
         assertEquals(2, host.connects)
+    }
+
+    @Test
+    fun sendingThroughTheSessionReloadsAfterTheSignal() = runTest {
+        // What FlagCompanionViewModel.send does: the signal goes out, then the session reloads.
+        val staging = schema.copy(applicationName = "Demo · Staging")
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(staging))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val sent = mutableListOf<FlagSignal>()
+        val send = session.reloadingAfter(backgroundScope) { signal, _ -> sent.add(signal) }
+
+        assertTrue(send(Ping.Ping, Duration.ZERO))
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(listOf<FlagSignal>(Ping.Ping), sent)
+        assertEquals("Demo · Staging", assertIs<FlagCompanionState.Ready>(session.state.value).store.schema.applicationName)
+    }
+
+    @Test
+    fun aSendThatThrowsSchedulesNoReload() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val send = session.reloadingAfter(backgroundScope) { _, _ -> throw IllegalStateException("refused") }
+
+        assertFailsWith<IllegalStateException> { send(Ping.Ping, Duration.ZERO) }
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(1, host.connects)
     }
 
     @Test
@@ -583,6 +639,8 @@ class FlagCompanionSessionTest {
     }
 
     // Helpers
+
+    private enum class Ping : FlagSignal { Ping }
 
     /** A host that answers each connect with the next of [connections], then keeps giving the last. */
     private class Host(vararg connections: FlagBridgeConnection, val values: Map<FlagKey, FlagValueBox> = emptyMap()) {

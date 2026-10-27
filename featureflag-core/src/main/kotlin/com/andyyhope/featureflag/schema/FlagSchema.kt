@@ -260,8 +260,10 @@ public data class FlagSchema(
             val type = typeName?.let(FlagValueType::parse)
             if (key == null || typeName == null || type == null) malformed("flag entry is missing a key or value type")
             val default = fields["defaultValue"]?.toBox(type) ?: malformed("flag '$key' has a default that is not a $typeName")
-            // Only a hint for the editor, so one that cannot be read is dropped rather than refused.
-            val effective = fields["effectiveValue"]?.toBox(type)
+            // Only a hint for the editor, so one that cannot be read, or that names no source, is
+            // dropped rather than refused: the two fields are present together or not at all.
+            val effectiveSource = text(fields["effectiveSource"])
+            val effective = effectiveSource?.let { fields["effectiveValue"]?.toBox(type) }
             return Entry(
                 key = FlagKey(key),
                 propertyPath = strings(fields["propertyPath"]) ?: listOf(key),
@@ -272,7 +274,7 @@ public data class FlagSchema(
                 remoteKey = text(fields["remoteKey"]),
                 recordShape = objects(fields["recordShape"])?.mapNotNull(::recordField),
                 effectiveValue = effective,
-                effectiveSource = effective?.let { text(fields["effectiveSource"]) },
+                effectiveSource = effective?.let { effectiveSource },
             )
         }
 

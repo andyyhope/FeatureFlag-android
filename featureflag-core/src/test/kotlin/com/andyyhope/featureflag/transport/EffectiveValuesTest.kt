@@ -150,12 +150,14 @@ class EffectiveValuesTest {
     }
 
     @Test
-    fun anEffectiveValueThatDoesNotMatchItsTypeIsDroppedWithItsSource() {
+    fun anEffectiveValueThatDoesNotMatchItsTypeOrLacksItsPartnerIsDropped() {
         val schema = FlagSchema.parse(
             """
             {"formatVersion": 1, "flags": [
               {"key": "a", "valueType": "int", "defaultValue": 1, "effectiveValue": "lots", "effectiveSource": "Remote"},
-              {"key": "b", "valueType": "int", "defaultValue": 1, "effectiveValue": 2, "effectiveSource": "Remote"}
+              {"key": "b", "valueType": "int", "defaultValue": 1, "effectiveValue": 2, "effectiveSource": "Remote"},
+              {"key": "c", "valueType": "int", "defaultValue": 1, "effectiveValue": 3},
+              {"key": "d", "valueType": "int", "defaultValue": 1, "effectiveSource": "Remote"}
             ]}
             """.trimIndent().encodeToByteArray(),
         )
@@ -164,5 +166,8 @@ class EffectiveValuesTest {
         assertNull(schema.flags[0].effectiveSource)
         assertEquals(FlagValueBox.Int(2), schema.flags[1].effectiveValue)
         assertEquals("Remote", schema.flags[1].effectiveSource)
+        // One field without the other is dropped: they are present together or not at all.
+        assertNull(schema.flags[2].effectiveValue)
+        assertNull(schema.flags[3].effectiveSource)
     }
 }
