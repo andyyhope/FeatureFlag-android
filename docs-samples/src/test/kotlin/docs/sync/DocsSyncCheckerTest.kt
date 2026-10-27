@@ -393,6 +393,17 @@ class DocsSyncCheckerTest {
     }
 
     @Test
+    fun aJitPackCoordinateMustNameTheReleaseVersionToo() {
+        val bom = "implementation(platform(\"com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.0.9\"))"
+        val versionless = "implementation(\"com.github.andyyhope.FeatureFlag-android:featureflag-android\")"
+        val doc = "<!-- snippet-ignore: JitPack -->\n```kts\n$bom\n$versionless\n```\n"
+
+        val problems = problems(mapOf("docs/A.md" to doc))
+
+        assertOneProblem(problems, "docs/A.md:2: 'featureflag-bom:0.0.9' should name the release version, 0.1.0")
+    }
+
+    @Test
     fun anInstallCoordinateMustNameAPublishedArtifact() {
         val doc = "```sh\necho com.andyyhope.featureflag:featureflag-compose:0.1.0\n```\n"
 

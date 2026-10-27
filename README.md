@@ -59,8 +59,8 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
-    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
+    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
 
     implementation("com.andyyhope.featureflag:featureflag-android")
     implementation("com.andyyhope.featureflag:featureflag-bridge")
@@ -69,8 +69,8 @@ dependencies {
 }
 ```
 
-0.1.0 is not on Maven Central yet. Until it is, build it from a clone of this repository
-with `./gradlew publishToMavenLocal -PVERSION_NAME=0.1.0`, and add `mavenLocal()` to your
+0.1.1 is not on Maven Central yet. Until it is, build it from a clone of this repository
+with `./gradlew publishToMavenLocal -PVERSION_NAME=0.1.1`, and add `mavenLocal()` to your
 build's repositories.
 
 The BOM keeps every artifact on one version; KSP's configuration does not inherit from
@@ -113,8 +113,8 @@ Then use the BOM, so one tag fixes every version:
 <!-- snippet-ignore: JitPack coordinates, which no build in this repository resolves -->
 ```kts
 dependencies {
-    implementation(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.0"))
-    ksp(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.0"))
+    implementation(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.1"))
+    ksp(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.1"))
 
     implementation("com.github.andyyhope.FeatureFlag-android:featureflag-android")
     implementation("com.github.andyyhope.FeatureFlag-android:featureflag-bridge")
