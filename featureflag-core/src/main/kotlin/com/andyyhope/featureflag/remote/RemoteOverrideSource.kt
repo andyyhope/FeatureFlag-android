@@ -30,16 +30,18 @@ public data class RemoteApplyResult(
 public class RemoteOverrideSource(
     public val schema: FlagSchema,
     public val mapper: RemoteOverrideMapper = DotPathMapper,
-    override val sourceName: String = "Remote",
+    name: String = "Remote",
 ) : FlagValueSource {
+
+    override val sourceName: String = name
 
     /** A source for a container, described with the key encoding its pole uses. */
     public constructor(
         spec: FlagContainerSpec<*>,
         keyEncoding: KeyEncoding = KeyEncoding.Kebabcase,
         mapper: RemoteOverrideMapper = DotPathMapper,
-        sourceName: String = "Remote",
-    ) : this(FlagSchema.of(spec, keyEncoding), mapper, sourceName)
+        name: String = "Remote",
+    ) : this(FlagSchema.of(spec, keyEncoding), mapper, name)
 
     // Serialises the swaps of values, so a conditional commit is atomic with respect to every other
     // apply and clear. Reads take no lock, and nothing is emitted while it is held.

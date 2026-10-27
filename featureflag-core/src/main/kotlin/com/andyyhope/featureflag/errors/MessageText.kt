@@ -1,5 +1,6 @@
 package com.andyyhope.featureflag.errors
 
+import com.andyyhope.featureflag.json.AppleNumberFormat
 import com.andyyhope.featureflag.json.IsoDate
 import com.andyyhope.featureflag.values.FlagValueBox
 import java.math.BigDecimal
@@ -141,7 +142,7 @@ internal object MessageText {
         // The value is 0.<digits> × 10^point.
         val point = digits.length - stripped.scale()
         return if (exponential || point < SMALLEST_DECIMAL_EXPONENT) {
-            exponentialForm(digits, point - 1)
+            AppleNumberFormat.exponential(digits, point - 1)
         } else {
             decimalForm(digits, point)
         }
@@ -151,12 +152,6 @@ internal object MessageText {
         point <= 0 -> "0." + "0".repeat(-point) + digits
         point >= digits.length -> digits + "0".repeat(point - digits.length) + ".0"
         else -> digits.substring(0, point) + "." + digits.substring(point)
-    }
-
-    private fun exponentialForm(digits: String, exponent: Int): String {
-        val mantissa = if (digits.length == 1) digits else digits.take(1) + "." + digits.drop(1)
-        val sign = if (exponent < 0) "-" else "+"
-        return mantissa + "e" + sign + abs(exponent).toString().padStart(2, '0')
     }
 
     private fun sign(negative: Boolean): String = if (negative) "-" else ""

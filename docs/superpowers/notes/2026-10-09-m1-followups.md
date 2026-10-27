@@ -1,5 +1,7 @@
 # M1 follow-ups
 
+Status (2026-10-27): the 'Small code fixes' and 'Test gaps' items are closed by `2026-10-25-m5-hardening.md`. Filing the upstream iOS issue is still THE USER's call.
+
 Milestone M1 (core, KSP, test support) was executed task by task, with a review after each task and a final whole-branch review. This note keeps what those reviews deferred, so M2–M4 planning can pick it up. Line numbers are from the M1 head and may drift.
 
 ## Design changes made during M1 (where the code departs from the plans)

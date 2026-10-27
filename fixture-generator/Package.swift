@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "decode-kotlin-fixtures", targets: ["DecodeKotlinFixtures"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/andyyhope/FeatureFlag.git", exact: "0.12.0"),
+        .package(url: "https://github.com/andyyhope/FeatureFlag.git", exact: "0.12.1"),
     ],
     targets: [
         .target(

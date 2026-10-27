@@ -4,6 +4,7 @@ import com.andyyhope.featureflag.errors.FlagImportException
 import com.andyyhope.featureflag.errors.FlagImportProblem
 import com.andyyhope.featureflag.errors.FlagSerializationException
 import com.andyyhope.featureflag.errors.MessageText
+import com.andyyhope.featureflag.json.AppleNumberFormat
 import com.andyyhope.featureflag.json.IsoDate
 import com.andyyhope.featureflag.json.JsonReader
 import com.andyyhope.featureflag.json.JsonSyntaxException
@@ -17,11 +18,7 @@ import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
 import com.andyyhope.featureflag.values.toBox
 import com.andyyhope.featureflag.values.toJson
-import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
 import java.time.Instant
-import kotlin.math.abs
 
 /**
  * A set of flag overrides, ready to be written to a file, shared, or carried in a QR code.
@@ -52,7 +49,7 @@ public data class FlagPayload(
                 "values" to JsonValue.Object(values.entries.associate { (key, box) -> key.rawValue to box.toJson() }),
             ),
         )
-        return JsonWriter.pretty(document).encodeToByteArray()
+        return JsonWriter.prettyBytes(document)
     }
 
     public companion object {
@@ -96,8 +93,8 @@ public data class FlagPayload(
             // JsonReader accepts what JSONSerialization accepts, a byte order mark and a trailing comma included.
             val parsed = try {
                 JsonReader.parse(bytes)
-            } catch (ignored: JsonSyntaxException) {
-                null
+            } catch (error: JsonSyntaxException) {
+                throw FlagImportException.Malformed("not a JSON object", error)
             }
             return parsed as? JsonValue.Object ?: throw FlagImportException.Malformed("not a JSON object")
         }
@@ -122,25 +119,11 @@ public data class FlagPayload(
  */
 internal class ImportRules(schema: FlagSchema) {
 
-    val types: Map<FlagKey, FlagValueType> = buildMap {
-        for (entry in schema.flags) {
-            if (entry.key !in this) put(entry.key, entry.valueType)
-        }
-    }
+    val types: Map<FlagKey, FlagValueType> = schema.valueTypes
 
-    private val cases: Map<FlagKey, List<FlagValueBox>> = buildMap {
-        for (entry in schema.flags) {
-            val entryCases = entry.cases
-            if (!entryCases.isNullOrEmpty() && entry.key !in this) put(entry.key, entryCases)
-        }
-    }
+    private val cases: Map<FlagKey, List<FlagValueBox>> = schema.valueCases
 
-    private val shapes: Map<FlagKey, List<FlagRecordField>> = buildMap {
-        for (entry in schema.flags) {
-            val shape = entry.recordShape
-            if (!shape.isNullOrEmpty() && entry.key !in this) put(entry.key, shape)
-        }
-    }
+    private val shapes: Map<FlagKey, List<FlagRecordField>> = schema.recordShapes
 
     /** The one problem with [raw] for [key], or null when [box] (raw read as the declared type) can be applied. */
     fun problemWith(key: FlagKey, raw: JsonValue, box: FlagValueBox?): FlagImportProblem? {
@@ -201,14 +184,5 @@ private fun JsonValue.importDescription(): String = when (this) {
 private fun numberDescription(value: Double): String {
     if (value.isInfinite()) return if (value > 0.0) "inf" else "-inf"
     if (value == 0.0) return if (1.0 / value < 0.0) "-0" else "0"
-    val rounded = BigDecimal(value).round(MathContext(NUMBER_DIGITS, RoundingMode.HALF_EVEN))
-    val exponent = rounded.precision() - rounded.scale() - 1
-    if (exponent < -4 || exponent >= NUMBER_DIGITS) {
-        val digits = rounded.unscaledValue().abs().toString().trimEnd('0')
-        val mantissa = if (digits.length > 1) "${digits[0]}.${digits.substring(1)}" else digits
-        val sign = if (rounded.signum() < 0) "-" else ""
-        val exponentSign = if (exponent < 0) "-" else "+"
-        return "$sign${mantissa}e$exponentSign${abs(exponent).toString().padStart(2, '0')}"
-    }
-    return rounded.stripTrailingZeros().toPlainString()
+    return AppleNumberFormat.g(value, NUMBER_DIGITS)
 }

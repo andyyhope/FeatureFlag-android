@@ -3,6 +3,7 @@ package com.andyyhope.featureflag.pole
 import com.andyyhope.featureflag.container.FlagContainerSpec
 import com.andyyhope.featureflag.container.FlagRef
 import com.andyyhope.featureflag.container.read
+import com.andyyhope.featureflag.remote.RemoteOverrideSource
 import com.andyyhope.featureflag.schema.FlagDescriptor
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.schema.flattened
@@ -29,6 +30,8 @@ import kotlinx.coroutines.flow.map
  *   every key, so choose it once.
  * @param applicationName what a companion app calls this app. It goes into [schema]; null
  *   leaves the name out, as Swift does for an app without a display name.
+ * @throws IllegalArgumentException when a [RemoteOverrideSource] in [sources] describes a key this
+ *   pole does not have, for example when that source was built with a different [keyEncoding].
  */
 public class FlagPole<F : Any>(
     public val spec: FlagContainerSpec<F>,
@@ -47,6 +50,17 @@ public class FlagPole<F : Any>(
 
     /** This pole's flags, described so a companion app can render them without the host's types. Built once. */
     public val schema: FlagSchema = FlagSchema.of(spec, keyEncoding = keyEncoding, applicationName = applicationName)
+
+    init {
+        val held = schema.flags.mapTo(HashSet()) { it.key }
+        for (source in this.sources.filterIsInstance<RemoteOverrideSource>()) {
+            val lacking = source.schema.flags.firstOrNull { it.key !in held }
+            require(lacking == null) {
+                "RemoteOverrideSource '${source.sourceName}' describes '${lacking?.key?.rawValue}', " +
+                    "which this pole does not have. Build it with the pole's keyEncoding."
+            }
+        }
+    }
 
     /**
      * Every change any source reports: cold, delivered in the collector's context, with no

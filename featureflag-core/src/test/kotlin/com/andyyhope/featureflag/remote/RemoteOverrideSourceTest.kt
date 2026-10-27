@@ -16,6 +16,7 @@ import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagStringEnum
 import com.andyyhope.featureflag.values.FlagValueBox
 import com.andyyhope.featureflag.values.FlagValueType
+import com.andyyhope.featureflag.values.KeyEncoding
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -107,6 +108,30 @@ class RemoteOverrideSourceTest {
     private fun json(text: String): ByteArray = text.toByteArray()
 
     private fun makeSource() = RemoteOverrideSource(RemoteDemoFlagsSpec)
+
+    @Test
+    fun nameLabelsTheSourceAsOnIos() {
+        assertEquals("CDN", RemoteOverrideSource(RemoteDemoFlagsSpec, name = "CDN").sourceName)
+        assertEquals("CDN", RemoteOverrideSource(FlagSchema.of(RemoteDemoFlagsSpec), name = "CDN").sourceName)
+    }
+
+    @Test
+    fun aPoleRefusesARemoteSourceBuiltWithAnotherKeyEncoding() {
+        val remote = RemoteOverrideSource(RemoteDemoFlagsSpec, keyEncoding = KeyEncoding.Snakecase)
+        val error = assertFailsWith<IllegalArgumentException> { FlagPole(RemoteDemoFlagsSpec, listOf(remote)) }
+        assertEquals(
+            "RemoteOverrideSource 'Remote' describes 'new_onboarding', which this pole does not have. " +
+                "Build it with the pole's keyEncoding.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun aPoleAcceptsARemoteSourceCoveringPartOfItsFlags() {
+        val full = FlagSchema.of(RemoteDemoFlagsSpec)
+        val part = full.copy(flags = full.flags.take(1))
+        FlagPole(RemoteDemoFlagsSpec, listOf(RemoteOverrideSource(part), RemoteOverrideSource(full.copy(flags = emptyList()))))
+    }
 
     // Dot paths
 

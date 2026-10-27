@@ -8,7 +8,6 @@ import com.andyyhope.featureflag.records.RecordJson
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
-import com.andyyhope.featureflag.values.storageIdentity
 
 /**
  * A payload turned into flag values, before anything is stored. The audit describes this
@@ -24,10 +23,7 @@ internal fun FlagSchema.mapRemote(payload: RemoteValue, mapper: RemoteOverrideMa
     val mapped = mapper.map(payload, this)
 
     // First wins on a repeated key: a schema handed in directly may not be well formed.
-    val entries = LinkedHashMap<FlagKey, FlagSchema.Entry>()
-    for (entry in flags) {
-        if (entry.key !in entries) entries[entry.key] = entry
-    }
+    val entries = entriesByKey
 
     val boxes = LinkedHashMap<FlagKey, FlagValueBox>()
     val problems = ArrayList<RemoteOverrideProblem>()
@@ -86,7 +82,7 @@ internal fun RemoteValue.recordBox(shape: List<FlagRecordField>): FlagValueBox? 
     if (this !is RemoteValue.Array) return null
     val records = ArrayList<Map<String, FlagValueBox>>(value.size)
     for (item in value) records += (item as? RemoteValue.Object)?.recordFields(shape) ?: return null
-    if (firstDuplicateKey(records, shape) != null) return null
+    if (RecordJson.duplicateKey(records, shape) != null) return null
     return FlagValueBox.String(RecordJson.encode(records))
 }
 
@@ -115,23 +111,12 @@ private fun RemoteValue.Object.recordFields(shape: List<FlagRecordField>): Map<S
     return boxes
 }
 
-/** The first key value two records share, compared as stored. `null` when all are distinct or the shape names no key. */
-private fun firstDuplicateKey(records: List<Map<String, FlagValueBox>>, shape: List<FlagRecordField>): FlagValueBox? {
-    val keyName = shape.firstOrNull { it.isKey }?.name ?: return null
-    val seen = HashSet<String>()
-    for (record in records) {
-        val value = record[keyName] ?: continue
-        if (!seen.add(value.storageIdentity)) return value
-    }
-    return null
-}
-
 /** The duplicate key in a payload, when that is what made it unusable. Used only to say so. */
 internal fun RemoteValue.duplicateRecordKey(shape: List<FlagRecordField>): FlagValueBox? {
     if (this is RemoteValue.String) {
         // Parsed as stored but with the uniqueness rule switched off, so the duplicate can be named.
         val records = RecordJson.decode(value, shape.map { it.copy(isKey = false) }) ?: return null
-        return firstDuplicateKey(records, shape)
+        return RecordJson.duplicateKey(records, shape)
     }
     if (this !is RemoteValue.Array) return null
     val records = ArrayList<Map<String, FlagValueBox>>(value.size)
@@ -139,7 +124,7 @@ internal fun RemoteValue.duplicateRecordKey(shape: List<FlagRecordField>): FlagV
         val fields = (item as? RemoteValue.Object)?.value ?: return null
         records += shape.mapNotNull { field -> fields[field.payloadName]?.box(field.type)?.let { field.name to it } }.toMap()
     }
-    return firstDuplicateKey(records, shape)
+    return RecordJson.duplicateKey(records, shape)
 }
 
 /** What a record flag wanted. A list that parses but repeats a key failed the uniqueness rule, not the shape. */

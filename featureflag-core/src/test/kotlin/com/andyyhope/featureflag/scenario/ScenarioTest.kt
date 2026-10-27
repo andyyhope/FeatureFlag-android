@@ -27,7 +27,7 @@ class ScenarioTest {
 
     private fun makeStack(): Stack {
         val local = SnapshotSource("Companion")
-        val remote = RemoteOverrideSource(DemoFlagsSpec, sourceName = "Remote")
+        val remote = RemoteOverrideSource(DemoFlagsSpec, name = "Remote")
         return Stack(FlagPole(DemoFlagsSpec, listOf(local, remote)), remote, local)
     }
 
@@ -159,7 +159,7 @@ class ScenarioTest {
 
     @Test
     fun theDefaultMapperFindsNothingInARecordList() {
-        val plain = RemoteOverrideSource(DemoFlagsSpec, sourceName = "Remote")
+        val plain = RemoteOverrideSource(DemoFlagsSpec, name = "Remote")
         val result = plain.apply(RemoteConfiguration.experiments.data)
         assertTrue(result.appliedKeys.isEmpty())
         assertNull(plain.box(key("new-onboarding"), FlagValueType.Bool))
@@ -167,7 +167,7 @@ class ScenarioTest {
 
     @Test
     fun theCustomMapperReshapesTheSamePayload() {
-        val source = RemoteOverrideSource(DemoFlagsSpec, mapper = DemoRemoteMapper, sourceName = "Remote")
+        val source = RemoteOverrideSource(DemoFlagsSpec, mapper = DemoRemoteMapper, name = "Remote")
         val result = source.apply(RemoteConfiguration.experiments.data)
         assertEquals(setOf(key("new-onboarding"), key("checkout.apple-pay")), result.appliedKeys.toSet())
         assertEquals(FlagValueBox.Bool(true), source.box(key("new-onboarding"), FlagValueType.Bool))

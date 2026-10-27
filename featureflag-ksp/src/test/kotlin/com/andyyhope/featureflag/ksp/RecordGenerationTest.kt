@@ -23,6 +23,38 @@ class RecordGenerationTest {
         ),
     ).assertMatchesSnapshot("EndpointFlagRecord.kt")
 
+    @Test fun aRecordNestedInAnObjectMatchesItsSnapshot() = compile(
+        source(
+            "Catalog.kt",
+            """
+            object Catalog {
+                @FlagRecord
+                data class Item(@FlagRecordKey val sku: String, val stock: Int = 0)
+            }
+            """,
+        ),
+    ).assertMatchesSnapshot("Catalog_ItemFlagRecord.kt")
+
+    @Test fun anInternalRecordMatchesItsSnapshot() = compile(
+        source(
+            "Secret.kt",
+            """
+            @FlagRecord
+            internal data class Secret(@FlagRecordKey val id: String, val level: Int = 1)
+            """,
+        ),
+    ).assertMatchesSnapshot("SecretFlagRecord.kt")
+
+    @Test fun aRecordWithEveryFieldDefaultedMatchesItsSnapshot() = compile(
+        source(
+            "Settings.kt",
+            """
+            @FlagRecord
+            data class Settings(val theme: String = "light", val retries: Int = 3, val verbose: Boolean = false)
+            """,
+        ),
+    ).assertMatchesSnapshot("SettingsFlagRecord.kt")
+
     @Test fun aRecordWithoutDefaultsBuildsNoPrototype() {
         val compiled = compile(source("Target.kt", "@FlagRecord\ndata class Target(val host: String, val port: Int)"))
         assertTrue(compiled.succeeded, compiled.problems)

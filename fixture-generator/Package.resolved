@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/andyyhope/FeatureFlag.git",
       "state" : {
-        "revision" : "f57cc28965deca4c6343d023ed63d350c9562c45",
-        "version" : "0.12.0"
+        "revision" : "98369285e111dea59f7d9e1e9d0bfe118ce5007e",
+        "version" : "0.12.1"
       }
     },
     {

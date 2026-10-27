@@ -234,8 +234,9 @@ work.
 ### Key encoding has to agree
 
 `RemoteOverrideSource` builds its own `FlagSchema`, so if the pole uses a non-default
-encoding the source needs the same one — otherwise it validates against keys the pole
-never looks up:
+encoding the source needs the same one. A pole refuses a source that describes keys it
+does not have, throwing `IllegalArgumentException` with "RemoteOverrideSource 'Remote'
+describes 'new-onboarding', which this pole does not have.":
 
 <!-- snippet: remote-key-encoding -->
 ```kotlin

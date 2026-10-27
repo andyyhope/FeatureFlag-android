@@ -44,6 +44,10 @@ class SharedPreferencesSourceTest {
 
     private fun makeSource(): SharedPreferencesSource = SharedPreferencesSource(preferences, "local")
 
+    @Test
+    fun nameLabelsTheSourceAsOnIos() =
+        assertEquals("Local", SharedPreferencesSource(preferences, name = "Local").sourceName)
+
     /** Runs the listener callbacks the framework posted to the main thread. */
     private fun idleMainLooper() {
         shadowOf(Looper.getMainLooper()).idle()

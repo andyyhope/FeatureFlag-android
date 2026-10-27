@@ -145,8 +145,8 @@ internal class RecordGenerator(resolver: Resolver, private val codeGenerator: Co
         model.fields.forEach { field ->
             if (field.isOptional) {
                 body.addStatement(
-                    "record.%N?.let { put(%S, %N.encode(it)) }",
-                    field.name, field.name, field.codecProperty,
+                    "record.%N?.%M { put(%S, %N.encode(it)) }",
+                    field.name, Names.LET, field.name, field.codecProperty,
                 )
             } else {
                 body.addStatement("put(%S, %N.encode(record.%N))", field.name, field.codecProperty, field.name)
@@ -165,7 +165,10 @@ internal class RecordGenerator(resolver: Resolver, private val codeGenerator: Co
         val body = CodeBlock.builder().add("val record = %T(\n", model.name).indent()
         model.fields.forEach { field ->
             val fallback = if (field.isOptional) "" else " ?: return null"
-            body.add("%N = boxes[%S]?.let(%N::decode)$fallback,\n", field.name, field.name, field.codecProperty)
+            body.add(
+                "%N = boxes[%S]?.%M(%N::decode)$fallback,\n",
+                field.name, field.name, Names.LET, field.codecProperty,
+            )
         }
         body.unindent().add(")\n").addStatement("return record")
         return FunSpec.builder("fromBoxes")
@@ -203,7 +206,7 @@ internal class RecordGenerator(resolver: Resolver, private val codeGenerator: Co
         .returns(model.name.copy(nullable = true))
         .addStatement("val codec = %L", key.codec)
         .addStatement("val wanted = codec.encode(key)")
-        .addStatement("return firstOrNull { codec.encode(it.%N) == wanted }", key.name)
+        .addStatement("return %M { codec.encode(it.%N) == wanted }", Names.FIRST_OR_NULL, key.name)
         .build()
 
     private companion object {

@@ -2,6 +2,7 @@ package com.andyyhope.featureflag.schema
 
 import com.andyyhope.featureflag.errors.FlagSchemaException
 import com.andyyhope.featureflag.errors.FlagSerializationException
+import com.andyyhope.featureflag.transport.FlagPayload
 import com.andyyhope.featureflag.values.FlagCodecs
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
@@ -116,5 +117,16 @@ class FlagSchemaTest {
             "The schema is format version 99; this build understands 1. Update whichever app is older.",
             error.message,
         )
+    }
+
+    @Test fun aLoneSurrogateIsWrittenAsTheReplacementCharacterLikeTheExport() {
+        val replacement = byteArrayOf(0x61, 0xEF.toByte(), 0xBF.toByte(), 0xBD.toByte(), 0x62)
+        fun containsReplacement(bytes: ByteArray) =
+            bytes.toList().windowed(replacement.size).any { it == replacement.toList() }
+
+        val schema = FlagSchema.of(specOf(flag("one", "a\uD800b", FlagCodecs.boolean, false)))
+        assertTrue(containsReplacement(schema.jsonBytes()))
+        val payload = FlagPayload(mapOf(FlagKey("one") to FlagValueBox.String("a\uD800b")))
+        assertTrue(containsReplacement(payload.jsonBytes()))
     }
 }

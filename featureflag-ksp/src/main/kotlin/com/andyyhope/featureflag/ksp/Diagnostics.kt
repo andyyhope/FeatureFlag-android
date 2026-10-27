@@ -160,7 +160,7 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
             name in RESERVED -> report(Diagnostics.reservedName(name, container), property)
             !isFlag && !isGroup -> when {
                 !property.isAbstract() -> true
-                type.isRecordList() -> report(Diagnostics.recordListNeedsFlag(name), property)
+                type.isRecordList(resolver) -> report(Diagnostics.recordListNeedsFlag(name), property)
                 else -> report(Diagnostics.unattributedProperty(name), property)
             }
             property.isMutable -> report(Diagnostics.mutableProperty(name), property)
@@ -172,10 +172,10 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
     }
 
     private fun group(property: KSPropertyDeclaration, name: String, type: KSType): Boolean {
-        if (type.isRecordList()) return report(Diagnostics.recordListNeedsFlag(name), property)
+        if (type.isRecordList(resolver)) return report(Diagnostics.recordListNeedsFlag(name), property)
         if (!property.isAbstract()) return report(Diagnostics.groupHasGetter(name), property)
-        val target = type.expanded().declaration as? KSClassDeclaration
-        val isContainer = target != null && !type.isMarkedNullable && target.classKind == ClassKind.INTERFACE &&
+        val target = type.expanded(resolver).declaration as? KSClassDeclaration
+        val isContainer = target != null && !type.expanded(resolver).isMarkedNullable && target.classKind == ClassKind.INTERFACE &&
             target.hasAnnotation(Names.FLAG_CONTAINER)
         if (target == null || !isContainer) return report(Diagnostics.groupNotAContainer(name, type.render()), property)
         val spec = Names.generatedName(target, "Spec")
@@ -244,11 +244,16 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
 
     /** Reports every `@FlagGroup` that leads back to its own container; returns the containers involved. */
     fun cycles(containers: List<KSClassDeclaration>): Set<KSClassDeclaration> {
-        val byName = containers.associateBy { it.qualifiedName?.asString() }
+        val inRound = containers.associateBy { it.qualifiedName?.asString() }
+        // An incremental build leaves unchanged containers out of the round, but a cycle can run through them.
+        val byName = { name: String? ->
+            inRound[name] ?: name?.let { resolver.getClassDeclarationByName(resolver.getKSNameFromString(it)) }
+                ?.takeIf { it.hasAnnotation(Names.FLAG_CONTAINER) }
+        }
         val cyclic = mutableSetOf<KSClassDeclaration>()
         for (container in containers) {
             for ((property, target) in groups(container)) {
-                val path = pathBack(container, byName[target], byName, listOf(container)) ?: continue
+                val path = pathBack(container, byName(target), byName, listOf(container)) ?: continue
                 cyclic += container
                 report(
                     Diagnostics.groupCycle(
@@ -270,13 +275,13 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
     fun dependencies(declaration: KSClassDeclaration): Set<String> {
         val names = mutableSetOf<String>()
         declaration.primaryConstructor?.takeIf { declaration.hasAnnotation(Names.FLAG_RECORD) }
-            ?.parameters?.forEach { names += it.type.resolve().recordClasses() }
+            ?.parameters?.forEach { names += it.type.resolve().recordClasses(resolver) }
         declaration.getDeclaredProperties().forEach {
             val type = it.type.resolve()
             if (it.hasAnnotation(Names.FLAG_GROUP)) {
-                type.expanded().declaration.qualifiedName?.asString()?.let(names::add)
+                type.expanded(resolver).declaration.qualifiedName?.asString()?.let(names::add)
             } else if (it.hasAnnotation(Names.FLAG)) {
-                names += type.recordClasses()
+                names += type.recordClasses(resolver)
             }
         }
         return names
@@ -285,21 +290,21 @@ internal class Checks(private val resolver: Resolver, private val logger: KSPLog
     private fun pathBack(
         start: KSClassDeclaration,
         next: KSClassDeclaration?,
-        byName: Map<String?, KSClassDeclaration>,
+        byName: (String?) -> KSClassDeclaration?,
         path: List<KSClassDeclaration>,
     ): List<KSClassDeclaration>? = when {
         next == null -> null
         next == start -> path + next
         next in path -> null
         else -> groups(next).firstNotNullOfOrNull { (_, target) ->
-            pathBack(start, byName[target], byName, path + next)
+            pathBack(start, byName(target), byName, path + next)
         }
     }
 
     private fun groups(container: KSClassDeclaration): List<Pair<KSPropertyDeclaration, String?>> =
         container.getDeclaredProperties()
             .filter { it.hasAnnotation(Names.FLAG_GROUP) }
-            .map { it to it.type.resolve().expanded().declaration.qualifiedName?.asString() }
+            .map { it to it.type.resolve().expanded(resolver).declaration.qualifiedName?.asString() }
             .toList()
 
     private fun report(message: String, at: KSNode): Boolean {
@@ -327,12 +332,12 @@ internal fun KSType.render(): String {
 }
 
 /** Whether this is `FlagRecords<…>`, in any spelling. */
-internal fun KSType.isRecordList(): Boolean =
-    expanded().declaration.qualifiedName?.asString() == Names.FLAG_RECORDS_NAME
+internal fun KSType.isRecordList(resolver: Resolver): Boolean =
+    expanded(resolver).declaration.qualifiedName?.asString() == Names.FLAG_RECORDS_NAME
 
 /** Qualified names of every `@FlagRecord` class [this] type mentions, through lists, maps and `FlagRecords`. */
-private fun KSType.recordClasses(): Set<String> {
-    val expanded = expanded()
+private fun KSType.recordClasses(resolver: Resolver): Set<String> {
+    val expanded = expanded(resolver)
     val own = expanded.declaration.takeIf { it.hasAnnotation(Names.FLAG_RECORD) }?.qualifiedName?.asString()
-    return setOfNotNull(own) + expanded.arguments.flatMap { it.type?.resolve()?.recordClasses().orEmpty() }
+    return setOfNotNull(own) + expanded.arguments.flatMap { it.type?.resolve()?.recordClasses(resolver).orEmpty() }
 }

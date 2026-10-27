@@ -4,7 +4,7 @@ Where this library departs from FeatureFlag for iOS, and why.
 
 ## Overview
 
-This is a port of [FeatureFlag](https://github.com/andyyhope/FeatureFlag) 0.12.0. The
+This is a port of [FeatureFlag](https://github.com/andyyhope/FeatureFlag) 0.12.1. The
 model is the same — a container of flags, an ordered stack of sources, a schema a
 companion app renders — and the formats are the same: an export, a QR code or a schema
 written on one platform reads on the other.
@@ -105,6 +105,8 @@ two share. Each is one line on what differs and one on why.
 - **Source names are "Companion" and "Remote", not "App Group".** They are what
   `resolution(…).sourceName` reports for `SharedPreferencesSource.companion(context)` and
   `RemoteOverrideSource`.
+- **A pole refuses a remote source whose keys it does not have.** iOS resolves nothing and
+  says nothing.
 - **App Groups, Darwin notifications and the foreground re-read are replaced by the
   bridge.** Android has no shared container between apps; an exported, signature-guarded
   provider is the door instead.

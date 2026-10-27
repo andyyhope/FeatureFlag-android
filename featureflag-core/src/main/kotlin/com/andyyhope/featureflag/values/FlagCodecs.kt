@@ -99,8 +99,9 @@ public object FlagCodecs {
     }
 
     private fun <E> enumCodec(valueType: FlagValueType, entries: List<E>, toBox: (E) -> FlagValueBox): FlagCodec<E> {
-        val byBox = entries.associateBy(toBox)
-        val allCases = entries.map(toBox)
+        // Swift's first-wins: two entries sharing a raw value decode to the first, and list the case once.
+        val byBox = HashMap<FlagValueBox, E>().also { map -> entries.forEach { map.putIfAbsent(toBox(it), it) } }
+        val allCases = entries.map(toBox).distinct()
         return object : FlagCodec<E> {
             override val type: FlagValueType = valueType
             override val cases: List<FlagValueBox> = allCases

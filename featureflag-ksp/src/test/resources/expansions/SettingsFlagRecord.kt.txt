@@ -1,0 +1,58 @@
+package app
+
+import com.andyyhope.featureflag.records.FlagRecordCodec
+import com.andyyhope.featureflag.records.FlagRecordField
+import com.andyyhope.featureflag.values.FlagCodec
+import com.andyyhope.featureflag.values.FlagCodecs
+import com.andyyhope.featureflag.values.FlagValueBox
+import kotlin.Boolean
+import kotlin.Exception
+import kotlin.IllegalStateException
+import kotlin.Int
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.buildMap
+import kotlin.collections.listOf
+import kotlin.lazy
+import kotlin.let
+
+public object SettingsFlagRecord : FlagRecordCodec<Settings> {
+  private val themeCodec: FlagCodec<String> = FlagCodecs.string
+
+  private val retriesCodec: FlagCodec<Int> = FlagCodecs.int
+
+  private val verboseCodec: FlagCodec<Boolean> = FlagCodecs.boolean
+
+  override val keyField: String? = null
+
+  override val shape: List<FlagRecordField> by lazy {
+    val defaults = prototype()
+    listOf(
+      FlagRecordField.of("theme", themeCodec, default = defaults.theme),
+      FlagRecordField.of("retries", retriesCodec, default = defaults.retries),
+      FlagRecordField.of("verbose", verboseCodec, default = defaults.verbose),
+    )
+  }
+
+  override fun boxes(record: Settings): Map<String, FlagValueBox> = buildMap {
+    put("theme", themeCodec.encode(record.theme))
+    put("retries", retriesCodec.encode(record.retries))
+    put("verbose", verboseCodec.encode(record.verbose))
+  }
+
+  override fun fromBoxes(boxes: Map<String, FlagValueBox>): Settings? {
+    val record = Settings(
+      theme = boxes["theme"]?.let(themeCodec::decode) ?: return null,
+      retries = boxes["retries"]?.let(retriesCodec::decode) ?: return null,
+      verbose = boxes["verbose"]?.let(verboseCodec::decode) ?: return null,
+    )
+    return record
+  }
+
+  private fun prototype(): Settings = try {
+    Settings()
+  } catch (e: Exception) {
+    throw IllegalStateException("Could not read the field defaults of 'Settings': its constructor threw when 'SettingsFlagRecord' called it with placeholder values (false, 0, \"\", empty, an enum's first case) for the fields that have no default. Give those fields defaults the constructor accepts.", e)
+  }
+}

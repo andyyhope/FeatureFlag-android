@@ -1,5 +1,6 @@
 package com.andyyhope.featureflag.ksp
 
+import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Resolver
@@ -58,7 +59,7 @@ internal sealed interface ContainerMember {
  * Writes `XRefs` and `XSpec` for one `@FlagContainer` interface `X`. Everything it reads has already
  * passed [Checks.container], so an unsupported type here is a bug in the checks, not in the input.
  */
-internal class ContainerGenerator(resolver: Resolver, private val codeGenerator: CodeGenerator) {
+internal class ContainerGenerator(private val resolver: Resolver, private val codeGenerator: CodeGenerator) {
 
     private val types = TypeMapping(resolver)
 
@@ -98,7 +99,7 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
     }
 
     private fun group(property: KSPropertyDeclaration, files: MutableList<KSFile>): ContainerMember.Group {
-        val target = property.type.resolve().expanded().declaration as KSClassDeclaration
+        val target = property.type.resolve().expanded(resolver).declaration as KSClassDeclaration
         target.containingFile?.let(files::add)
         return ContainerMember.Group(
             name = property.simpleName.asString(),
@@ -111,10 +112,32 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
 
     fun generate(model: ContainerModel) {
         FileSpec.builder(model.spec)
+            .apply { aliasCoreTypesNamedInPackage(model.spec.packageName) }
             .addType(refs(model))
             .addType(spec(model))
             .build()
             .writeTo(codeGenerator, aggregating = false, originatingKSFiles = model.originatingFiles)
+    }
+
+    /**
+     * KotlinPoet spells a core type out in full when the host's package declares another type of the same
+     * simple name, and a flag called `com` then shadows the package that name starts with. Such a core type
+     * is imported under an alias instead, named as KotlinPoet names its own: `ValuesFlagCodecs`, or with more
+     * of the package (`FeatureflagValuesFlagCodecs`, …) while the package declares that name too.
+     */
+    @OptIn(KspExperimental::class)
+    private fun FileSpec.Builder.aliasCoreTypesNamedInPackage(packageName: String) {
+        val declared = resolver.getDeclarationsFromPackage(packageName).map { it.simpleName.asString() }.toSet()
+        for (type in EXPRESSION_TYPES.filter { it.simpleName in declared && it.packageName != packageName }) {
+            val segments = type.packageName.split('.').map { it.replaceFirstChar(Char::uppercaseChar) }
+            val alias = generateSequence(1) { it + 1 }
+                .map { count ->
+                    segments.takeLast(count).joinToString("") + type.simpleName +
+                        "_".repeat((count - segments.size).coerceAtLeast(0))
+                }
+                .first { it !in declared }
+            addAliasedImport(type, alias)
+        }
     }
 
     private fun refs(model: ContainerModel): TypeSpec {
@@ -206,9 +229,9 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
                     member.remoteKey, member.name, member.name,
                 )
                 is ContainerMember.Group -> body.add(
-                    "%T.Group(%T(%S, %T(%M(%S)), %S, %T.flagDescriptors.map { it.prefixed(%S) })),\n",
+                    "%T.Group(%T(%S, %T(%M(%S)), %S, %T.flagDescriptors.%M { it.prefixed(%S) })),\n",
                     Names.FLAG_SCHEMA_NODE, Names.FLAG_GROUP_DESCRIPTOR, member.name, Names.FLAG_KEY_PATH,
-                    Names.LIST_OF, member.name, member.description, member.spec, member.name,
+                    Names.LIST_OF, member.name, member.description, member.spec, Names.COLLECTION_MAP, member.name,
                 )
             }
         }
@@ -280,6 +303,12 @@ internal class ContainerGenerator(resolver: Resolver, private val codeGenerator:
 
     private companion object {
         val KEYS: ClassName = ClassName("", "Keys")
+
+        /** The core types the generated code names in an expression, where a member can shadow a package. */
+        val EXPRESSION_TYPES: List<ClassName> = listOf(
+            Names.FLAG_REF, Names.FLAG_CODECS, Names.FLAG_KEY_PATH, Names.FLAG_SCHEMA_NODE, Names.FLAG_DESCRIPTOR,
+            Names.FLAG_GROUP_DESCRIPTOR,
+        )
     }
 }
 

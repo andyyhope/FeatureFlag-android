@@ -8,7 +8,7 @@ class FixturesTest {
 
     @Test
     fun manifestNamesTheReferenceVersion() {
-        assertTrue(Fixtures.text("manifest.json").contains("\"featureFlagVersion\" : \"0.12.0\""))
+        assertTrue(Fixtures.text("manifest.json").contains("\"featureFlagVersion\" : \"0.12.1\""))
     }
 
     @Test

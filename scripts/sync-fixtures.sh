@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates fixtures/ from FeatureFlag 0.12.0 through fixture-generator/.
+# Regenerates fixtures/ from FeatureFlag 0.12.1 through fixture-generator/.
 # fixtures/ is only ever written by this script; never edit it by hand.
 set -euo pipefail
 

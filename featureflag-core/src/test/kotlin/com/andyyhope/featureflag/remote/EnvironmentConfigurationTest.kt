@@ -2,6 +2,7 @@ package com.andyyhope.featureflag.remote
 
 import com.andyyhope.featureflag.Flag
 import com.andyyhope.featureflag.FlagContainer
+import com.andyyhope.featureflag.errors.RemoteOverrideException
 import com.andyyhope.featureflag.pole.FlagPole
 import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.values.FlagKey
@@ -182,6 +183,33 @@ class EnvironmentConfigurationTest {
     }
 
     @Test
+    fun aThrowingLocalLoaderIsReportedAndTheRemoteStillApplies() = runTest {
+        val config = EnvironmentConfiguration<Env>(
+            EnvFlagsSpec,
+            local = { throw Offline() },
+            remote = { bytes("""{ "pageSize": 25 }""") },
+        )
+        val pole = FlagPole(EnvFlagsSpec, config.sources)
+
+        val outcome = config.load(Env.Staging)
+
+        assertIs<Offline>(assertIs<LayerOutcome.Failed>(outcome.local).error)
+        assertTrue(outcome.remote.isApplied)
+        assertEquals(25, pole.flags.pageSize)
+    }
+
+    @Test
+    fun aPayloadTheSchemaRejectsIsReportedAndDoesNotApply() = runTest {
+        val config = EnvironmentConfiguration<Env>(EnvFlagsSpec, local = { bytes("""{ "pageSize": "big" }""") })
+        val pole = FlagPole(EnvFlagsSpec, config.sources)
+
+        val outcome = config.load(Env.Staging)
+
+        assertIs<RemoteOverrideException.Rejected>(assertIs<LayerOutcome.Failed>(outcome.local).error)
+        assertEquals(10, pole.flags.pageSize)
+    }
+
+    @Test
     fun onlyAFailureMakesALoadIncomplete() {
         assertTrue(LoadOutcome(LayerOutcome.Applied, LayerOutcome.Absent).isComplete)
         assertTrue(LoadOutcome(LayerOutcome.Superseded, LayerOutcome.Applied).isComplete)
@@ -297,9 +325,12 @@ class EnvironmentConfigurationTest {
         var production: LoadOutcome? = null
         val stale = thread(isDaemon = true) { staging = runBlocking { config.load(Env.Staging) } }
         assertTrue(stagingEntered.await(5, TimeUnit.SECONDS), "staging reached its local loader")
-        thread(isDaemon = true) { production = runBlocking { config.load(Env.Production) } }.join()
+        val fresh = thread(isDaemon = true) { production = runBlocking { config.load(Env.Production) } }
+        fresh.join(5_000)
+        assertFalse(fresh.isAlive, "the production load finished")
         releaseStaging.countDown()
-        stale.join()
+        stale.join(5_000)
+        assertFalse(stale.isAlive, "the staging load finished")
         return staging to production
     }
 

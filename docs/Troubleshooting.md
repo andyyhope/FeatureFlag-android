@@ -169,6 +169,9 @@ interface AliasedFlags {
 }
 ```
 
+Generated code imports everything it names, so nothing else in the library can be shadowed
+by a type of your own, not even one named like one of the library's.
+
 ### A remote payload appears to do nothing
 
 Ask what the apply reported:
@@ -188,6 +191,16 @@ remotely overridable and will never appear in either list.
 If nothing applied and it threw instead, `RemoteOverrideException.Rejected` carries every
 problem — one bad field rejects the whole payload by design. A
 [mapping audit](ValidatingAConfig.md) shows both directions at once.
+
+### A remote value never shows up
+
+A pole refuses a remote source built with a different `keyEncoding` from its own.
+Constructing the pole throws `IllegalArgumentException`, and the message begins "RemoteOverrideSource 'Remote' describes
+'new-onboarding', which this pole does not have." The source's keys are spelled one way and
+the pole's another, so the pole would never have asked for them. Build the source with the
+pole's `keyEncoding`, as [Remote Overrides](RemoteOverrides.md) shows. A source built from a
+hand-made schema that covers only some of the pole's flags is fine; only a key the pole
+lacks is refused.
 
 ### Importing throws `Rejected` with `UnknownKey`
 

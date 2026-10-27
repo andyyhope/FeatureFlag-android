@@ -1,0 +1,60 @@
+package app
+
+import com.andyyhope.featureflag.records.FlagRecordCodec
+import com.andyyhope.featureflag.records.FlagRecordField
+import com.andyyhope.featureflag.records.FlagRecords
+import com.andyyhope.featureflag.values.FlagCodec
+import com.andyyhope.featureflag.values.FlagCodecs
+import com.andyyhope.featureflag.values.FlagValueBox
+import kotlin.Exception
+import kotlin.IllegalStateException
+import kotlin.Int
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.buildMap
+import kotlin.collections.firstOrNull
+import kotlin.collections.listOf
+import kotlin.lazy
+import kotlin.let
+
+public object Catalog_ItemFlagRecord : FlagRecordCodec<Catalog.Item> {
+  private val skuCodec: FlagCodec<String> = FlagCodecs.string
+
+  private val stockCodec: FlagCodec<Int> = FlagCodecs.int
+
+  override val keyField: String? = "sku"
+
+  override val shape: List<FlagRecordField> by lazy {
+    val defaults = prototype()
+    listOf(
+      FlagRecordField.of("sku", skuCodec, isKey = true),
+      FlagRecordField.of("stock", stockCodec, default = defaults.stock),
+    )
+  }
+
+  override fun boxes(record: Catalog.Item): Map<String, FlagValueBox> = buildMap {
+    put("sku", skuCodec.encode(record.sku))
+    put("stock", stockCodec.encode(record.stock))
+  }
+
+  override fun fromBoxes(boxes: Map<String, FlagValueBox>): Catalog.Item? {
+    val record = Catalog.Item(
+      sku = boxes["sku"]?.let(skuCodec::decode) ?: return null,
+      stock = boxes["stock"]?.let(stockCodec::decode) ?: return null,
+    )
+    return record
+  }
+
+  private fun prototype(): Catalog.Item = try {
+    Catalog.Item(sku = "")
+  } catch (e: Exception) {
+    throw IllegalStateException("Could not read the field defaults of 'Item': its constructor threw when 'Catalog_ItemFlagRecord' called it with placeholder values (false, 0, \"\", empty, an enum's first case) for the fields that have no default. Give those fields defaults the constructor accepts.", e)
+  }
+}
+
+public operator fun FlagRecords<Catalog.Item>.`get`(key: String): Catalog.Item? {
+  val codec = FlagCodecs.string
+  val wanted = codec.encode(key)
+  return firstOrNull { codec.encode(it.sku) == wanted }
+}

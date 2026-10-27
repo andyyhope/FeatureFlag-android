@@ -314,9 +314,14 @@ class RemoteDocumentationExampleTest {
         assertTrue(pole.flags.newOnboarding)
 
         val mismatched = RemoteOverrideSource(DocsAppFlagsSpec)
-        val mismatchedPole = FlagPole(DocsAppFlagsSpec, listOf(mismatched), keyEncoding = KeyEncoding.Snakecase)
-        mismatched.apply(json(onboardingOn))
-        assertFalse(mismatchedPole.flags.newOnboarding, "a source keyed differently to its pole never gets asked for the key it holds")
+        val error = assertFailsWith<IllegalArgumentException> {
+            FlagPole(DocsAppFlagsSpec, listOf(mismatched), keyEncoding = KeyEncoding.Snakecase)
+        }
+        assertEquals(
+            "RemoteOverrideSource 'Remote' describes 'new-onboarding', which this pole does not have. " +
+                "Build it with the pole's keyEncoding.",
+            error.message,
+        )
     }
 
     // FlagValues.md

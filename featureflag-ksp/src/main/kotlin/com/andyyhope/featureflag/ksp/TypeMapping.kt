@@ -8,6 +8,8 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
+import com.google.devtools.ksp.symbol.KSTypeArgument
+import com.google.devtools.ksp.symbol.KSTypeParameter
 import com.google.devtools.ksp.symbol.Origin
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
@@ -51,6 +53,12 @@ internal object Names {
     val LAZY: MemberName = MemberName("kotlin", "lazy")
     val LIST_OF: MemberName = MemberName("kotlin.collections", "listOf")
     val BUILD_MAP: MemberName = MemberName("kotlin.collections", "buildMap")
+    val EMPTY_LIST: MemberName = MemberName("kotlin.collections", "emptyList")
+    val EMPTY_MAP: MemberName = MemberName("kotlin.collections", "emptyMap")
+    val FIRST: MemberName = MemberName("kotlin.collections", "first")
+    val FIRST_OR_NULL: MemberName = MemberName("kotlin.collections", "firstOrNull")
+    val COLLECTION_MAP: MemberName = MemberName("kotlin.collections", "map")
+    val LET: MemberName = MemberName("kotlin", "let")
     val INSTANT: ClassName = ClassName("java.time", "Instant")
     val URI: ClassName = ClassName("java.net", "URI")
 
@@ -76,14 +84,34 @@ internal fun KSAnnotated.annotationArgument(qualifiedName: String, argument: Str
     ?.firstOrNull { it.name?.asString() == argument }
     ?.value
 
-/** Expands typealiases until a class remains, keeping nullability. */
-internal fun KSType.expanded(): KSType {
+/**
+ * Expands typealiases until a class remains, substituting each alias's type arguments into its
+ * target and keeping nullability from both the use site and the target.
+ */
+internal fun KSType.expanded(resolver: Resolver): KSType {
     var type = this
     while (true) {
         val alias = type.declaration as? KSTypeAlias ?: return type
-        val target = alias.type.resolve()
+        val arguments = alias.typeParameters.zip(type.arguments).toMap()
+        val target = alias.type.resolve().let { if (arguments.isEmpty()) it else it.substituted(arguments, resolver) }
         type = if (type.isMarkedNullable) target.makeNullable() else target
     }
+}
+
+/** This type with each of [arguments]' type parameters replaced by its argument, at every depth. */
+private fun KSType.substituted(arguments: Map<KSTypeParameter, KSTypeArgument>, resolver: Resolver): KSType {
+    arguments[declaration]?.let { argument ->
+        val type = argument.type?.resolve() ?: return this
+        return if (isMarkedNullable) type.makeNullable() else type
+    }
+    if (this.arguments.isEmpty()) return this
+    return replace(
+        this.arguments.map { argument ->
+            val type = argument.type?.resolve() ?: return@map argument
+            val reference = resolver.createKSTypeReferenceFromKSType(type.substituted(arguments, resolver))
+            resolver.getTypeArgument(reference, argument.variance)
+        },
+    )
 }
 
 /** The files declaring every typealias [expanded] walks through, nested aliases included. */
@@ -122,7 +150,7 @@ internal class TypeMapping(private val resolver: Resolver) {
     }
 
     private fun mapExpanded(type: KSType): Result {
-        val expanded = type.expanded()
+        val expanded = type.expanded(resolver)
         if (expanded.isMarkedNullable) return Result.Unsupported(null)
         val declaration = expanded.declaration as? KSClassDeclaration ?: return Result.Unsupported(null)
         return when (declaration.qualifiedName?.asString()) {
@@ -143,7 +171,8 @@ internal class TypeMapping(private val resolver: Resolver) {
                 CodeBlock.of("%T(%S)", Names.URI, ""),
                 emptyList(),
             )
-            "kotlin.collections.List" -> collection(expanded.arguments[0].type?.resolve(), "list", "emptyList()")
+            "kotlin.collections.List" ->
+                collection(expanded.arguments[0].type?.resolve(), "list", CodeBlock.of("%M()", Names.EMPTY_LIST))
             "kotlin.collections.Map" -> dictionary(expanded)
             Names.FLAG_RECORDS_NAME -> records(expanded.arguments[0].type?.resolve())
             else -> named(declaration)
@@ -156,12 +185,12 @@ internal class TypeMapping(private val resolver: Resolver) {
         emptyList(),
     )
 
-    private fun collection(element: KSType?, function: String, placeholder: String): Result {
+    private fun collection(element: KSType?, function: String, placeholder: CodeBlock): Result {
         if (element == null) return Result.Unsupported(null)
         return when (val inner = map(element)) {
             is Result.Supported -> Result.Supported(
                 CodeBlock.of("%T.%N(%L)", Names.FLAG_CODECS, function, inner.codec),
-                CodeBlock.of(placeholder),
+                placeholder,
                 inner.originatingFiles,
             )
             else -> inner
@@ -170,11 +199,11 @@ internal class TypeMapping(private val resolver: Resolver) {
 
     private fun dictionary(type: KSType): Result {
         val keyType = type.arguments[0].type?.resolve()
-        val key = keyType?.expanded()
+        val key = keyType?.expanded(resolver)
         if (key == null || key.isMarkedNullable || key.declaration.qualifiedName?.asString() != "kotlin.String") {
             return Result.Unsupported(null)
         }
-        val result = collection(type.arguments[1].type?.resolve(), "map", "emptyMap()")
+        val result = collection(type.arguments[1].type?.resolve(), "map", CodeBlock.of("%M()", Names.EMPTY_MAP))
         if (result !is Result.Supported) return result
         return result.copy(originatingFiles = (result.originatingFiles + keyType.aliasFiles()).distinct())
     }
@@ -184,8 +213,9 @@ internal class TypeMapping(private val resolver: Resolver) {
      * otherwise it has to exist already, written by hand or generated in the module that declares `R`.
      */
     private fun records(element: KSType?): Result {
-        val record = element?.expanded()?.declaration as? KSClassDeclaration ?: return Result.Unsupported(null)
-        if (element.isMarkedNullable) return Result.Unsupported(null)
+        val expanded = element?.expanded(resolver)
+        val record = expanded?.declaration as? KSClassDeclaration ?: return Result.Unsupported(null)
+        if (expanded.isMarkedNullable) return Result.Unsupported(null)
         val codec = Names.generatedName(record, "FlagRecord")
         val annotated = record.hasAnnotation(Names.FLAG_RECORD)
         val generatedHere = annotated && record.origin == Origin.KOTLIN
@@ -214,7 +244,7 @@ internal class TypeMapping(private val resolver: Resolver) {
         val enumName = declaration.toClassName()
         return Result.Supported(
             CodeBlock.of("%T.%N(%T.entries)", Names.FLAG_CODECS, function, enumName),
-            CodeBlock.of("%T.entries.first()", enumName),
+            CodeBlock.of("%T.entries.%M()", enumName, Names.FIRST),
             listOfNotNull(declaration.containingFile),
         )
     }

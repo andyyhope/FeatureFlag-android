@@ -57,6 +57,16 @@ class FlagPayloadTest {
     private fun rejection(json: String): FlagImportException.Rejected =
         assertFailsWith<FlagImportException.Rejected> { decode(json) }
 
+    @Test
+    fun aRealValueOfTheWrongTypeIsDescribedAsNsNumberWouldDescribeIt() {
+        val found = { json: String -> rejection("""{"formatVersion":1,"values":{"string-flag":$json}}""").problems.single().found }
+        assertEquals("1.5e+300", found("1.5e300"))
+        assertEquals("0.1", found("0.1"))
+        assertEquals("1.234567890123457e+19", found("1.2345678901234568e19"))
+        assertEquals("-1.5e-07", found("-1.5e-7"))
+        assertEquals("-inf", found("-1e400"))
+    }
+
     // Writing
 
     @Test

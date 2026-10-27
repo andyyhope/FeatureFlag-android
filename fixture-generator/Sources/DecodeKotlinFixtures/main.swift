@@ -1,4 +1,4 @@
-// Decodes every file the Kotlin port wrote into fixtures-android/ with FeatureFlag 0.12.0,
+// Decodes every file the Kotlin port wrote into fixtures-android/ with FeatureFlag 0.12.1,
 // and exits non-zero if any of them fails.
 //
 //   swift run --package-path fixture-generator decode-kotlin-fixtures [fixtures-android]

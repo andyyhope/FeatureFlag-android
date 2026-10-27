@@ -2,7 +2,6 @@ package com.andyyhope.featureflag.remote
 
 import com.andyyhope.featureflag.errors.MessageText
 import com.andyyhope.featureflag.errors.RemoteOverrideException
-import com.andyyhope.featureflag.json.IsoDate
 import com.andyyhope.featureflag.json.JsonReader
 import com.andyyhope.featureflag.json.JsonSyntaxException
 import com.andyyhope.featureflag.json.JsonValue
@@ -54,7 +53,10 @@ public sealed interface RemoteValue {
             if (component.isEmpty()) continue
             current = when (val node = current) {
                 is Object -> node.value[component]
-                is Array -> component.toIntOrNull()?.let { node.value.getOrNull(it) }
+                // Swift's Int(_:) takes an optional sign and ASCII digits; Kotlin's toIntOrNull would
+                // also accept Arabic-Indic and fullwidth ones.
+                is Array -> component.takeIf { text -> text.removePrefix("+").removePrefix("-").all { it in '0'..'9' } }
+                    ?.toIntOrNull()?.let { node.value.getOrNull(it) }
                 else -> null
             } ?: return null
         }
@@ -143,7 +145,7 @@ internal val RemoteValue.shortDescription: String
         is RemoteValue.Double -> MessageText.double(value)
         is RemoteValue.String -> MessageText.quoted(value)
         is RemoteValue.Data -> "${value.size} bytes"
-        is RemoteValue.Date -> IsoDate.format(value)
-        is RemoteValue.Array -> "an array of ${value.size}"
-        is RemoteValue.Object -> "an object with ${value.size} field(s)"
+        is RemoteValue.Date -> MessageText.date(value)
+        is RemoteValue.Array -> MessageText.arrayOf(value.size)
+        is RemoteValue.Object -> MessageText.objectWith(value.size)
     }

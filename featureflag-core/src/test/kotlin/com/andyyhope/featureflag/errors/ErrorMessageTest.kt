@@ -177,6 +177,8 @@ class ErrorMessageTest {
             .toSet()
         val unaccounted = names - kotlinFor.keys - REWORDED - DROPPED
         assertTrue(unaccounted.isEmpty(), "goldens with no Kotlin counterpart: $unaccounted")
+        val stale = (REWORDED + DROPPED) - names
+        assertTrue(stale.isEmpty(), "REWORDED or DROPPED names with no golden: $stale")
         val missing = kotlinFor.keys - names
         assertTrue(missing.isEmpty(), "Kotlin messages the generator did not write: $missing")
     }
@@ -286,6 +288,10 @@ class ErrorMessageTest {
     fun anUnpublishedSchemaSaysWhatToGoAndDo() {
         // Swift also names the App Group; Android has none, so M1c rewords that half.
         assertSays(FlagSchemaException.NotPublished(), "publishSchema")
+        assertEquals(
+            "No schema has been published. The host app writes one with publishSchema(), so run it at least once.",
+            FlagSchemaException.NotPublished().message,
+        )
     }
 
     @Test
@@ -365,11 +371,21 @@ class ErrorMessageTest {
     fun writingWithNothingWritableSaysWhatToAdd() {
         // Swift names UserDefaultsSource; Android's noun differs, and SnapshotSource is common to both.
         assertSays(FlagException.NoMutableSource(), "SnapshotSource")
+        assertEquals(
+            "No source in the stack can be written to. Add a SharedPreferencesSource or a SnapshotSource — " +
+                "a pole built only from read-only sources has nowhere to put an override.",
+            FlagException.NoMutableSource().message,
+        )
     }
 
     @Test
     fun aRefusedValueNamesTheFlag() {
         assertSays(FlagException.UnsupportedValue(FlagKey("page-size")), "page-size")
+        assertEquals(
+            "The source refused the value for 'page-size' because it cannot represent it. " +
+                "The store accepts a narrower set of types than a flag can declare.",
+            FlagException.UnsupportedValue(FlagKey("page-size")).message,
+        )
     }
 
     @Test

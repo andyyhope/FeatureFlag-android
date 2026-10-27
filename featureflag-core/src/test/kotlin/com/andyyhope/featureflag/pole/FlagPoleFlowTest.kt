@@ -274,9 +274,9 @@ class FlagPoleFlowTest {
 
     @Test
     fun aBusyCollectorStillSeesItsChangeAfterABurstOfOtherWrites() {
-        // Review focus 1. The collector's only thread is blocked while its own key changes
-        // and then 200 other keys change. A subscription running on that thread would
-        // fall more than 64 changes behind, and the source would drop the one that matters.
+        // Review focus 1. The collector's only thread is blocked while its own key, boolFlag,
+        // is set to true and then intFlag is written 200 times. A subscription running on that
+        // thread would fall more than 64 changes behind, and the source would drop the one that matters.
         val executor = Executors.newSingleThreadExecutor()
         val busyThread = executor.asCoroutineDispatcher()
         try {

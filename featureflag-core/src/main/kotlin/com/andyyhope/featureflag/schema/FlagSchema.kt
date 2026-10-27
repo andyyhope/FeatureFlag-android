@@ -81,13 +81,17 @@ public data class FlagSchema(
             flags.forEach { entry -> entry.recordShape?.takeIf { it.isNotEmpty() }?.let { putIfAbsent(entry.key, it) } }
         }
 
+    /** The first entry per key, in schema order. Tolerates a duplicated key, as [valueTypes] does. */
+    internal val entriesByKey: Map<FlagKey, Entry>
+        get() = buildMap { flags.forEach { putIfAbsent(it.key, it) } }
+
     /** The document, exactly as Apple's `JSONSerialization` writes it. */
     public fun jsonBytes(): ByteArray {
         // A non-finite default has no JSON spelling; name the flag rather than fail somewhere deeper.
         flags.firstOrNull { it.defaultValue.containsNonFiniteNumber }?.let {
             throw FlagSerializationException.NonFiniteNumber(it.key)
         }
-        return JsonWriter.pretty(toJson()).toByteArray(Charsets.UTF_8)
+        return JsonWriter.prettyBytes(toJson())
     }
 
     /**
@@ -176,7 +180,12 @@ public data class FlagSchema(
                 malformed("not a JSON object", e)
             }
             val fields = (root as? JsonValue.Object)?.fields ?: malformed("not a JSON object")
-            val version = (fields["formatVersion"] as? JsonValue.Integer)?.value ?: malformed("missing formatVersion")
+            val version = when (val raw = fields["formatVersion"]) {
+                is JsonValue.Integer -> raw.value
+                // Swift reads the field with `as? Int`, which turns an NSNumber `true` into 1.
+                is JsonValue.Bool -> if (raw.value) 1L else 0L
+                else -> malformed("missing formatVersion")
+            }
             if (version != CURRENT_FORMAT_VERSION.toLong()) throw FlagSchemaException.UnsupportedFormatVersion(version)
             val entries = (objects(fields["flags"]) ?: malformed("missing flags")).map(::entry)
             duplicateKeys(entries).keys.minByOrNull { it.rawValue }?.let {

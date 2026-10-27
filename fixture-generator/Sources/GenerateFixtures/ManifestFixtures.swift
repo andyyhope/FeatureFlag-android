@@ -3,7 +3,7 @@ import Foundation
 enum ManifestFixtures {
     static func write(into writer: inout FixtureWriter) {
         let manifest: [String: Any] = [
-            "featureFlagVersion": "0.12.0",
+            "featureFlagVersion": "0.12.1",
             "swift": swiftVersion,
             "os": ProcessInfo.processInfo.operatingSystemVersionString,
             "generatedBy": "fixture-generator",

@@ -141,4 +141,12 @@ class FlagSchemaParseTest {
         val one = parse("""{"formatVersion":1,"flags":[{"key":"a","valueType":"bool","defaultValue":true}]}""")
         assertEquals(FlagKey("a"), one.flags.single().key)
     }
+
+    @Test fun aBooleanFormatVersionReadsAsSwiftReadsIt() {
+        fun document(version: String) =
+            """{"formatVersion":$version,"flags":[{"key":"one","valueType":"bool","defaultValue":false}]}"""
+        assertEquals(1, parse(document("true")).formatVersion)
+        val error = assertFailsWith<FlagSchemaException.UnsupportedFormatVersion> { parse(document("false")) }
+        assertEquals(0L, error.version)
+    }
 }

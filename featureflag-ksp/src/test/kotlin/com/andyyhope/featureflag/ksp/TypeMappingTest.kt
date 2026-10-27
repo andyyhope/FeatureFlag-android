@@ -48,6 +48,43 @@ class TypeMappingTest {
         return seen
     }
 
+    /**
+     * Property name to what [TypeMapping] makes of its type. Originating files are dropped, since a
+     * `KSFile` cannot be read once compilation ends; [originatingFiles] checks those.
+     */
+    private fun mapped(vararg sources: SourceFile): Map<String, TypeMapping.Result> {
+        val seen = mutableMapOf<String, TypeMapping.Result>()
+        val recorder = SymbolProcessorProvider {
+            object : SymbolProcessor {
+                override fun process(resolver: Resolver): List<KSAnnotated> {
+                    val types = TypeMapping(resolver)
+                    resolver.getNewFiles().flatMap { it.declarations }.filterIsInstance<KSClassDeclaration>()
+                        .filter { it.simpleName.asString().endsWith("Flags") }
+                        .forEach { container ->
+                            container.getDeclaredProperties().forEach { property ->
+                                val mapped = types.map(property.type.resolve())
+                                seen[property.simpleName.asString()] =
+                                    if (mapped is TypeMapping.Result.Supported) {
+                                        mapped.copy(originatingFiles = emptyList())
+                                    } else {
+                                        mapped
+                                    }
+                            }
+                        }
+                    return emptyList()
+                }
+            }
+        }
+        val result = KotlinCompilation().apply {
+            this.sources = sources.toList()
+            inheritClassPath = true
+            messageOutputStream = OutputStream.nullOutputStream()
+            configureKsp(useKsp2 = true) { symbolProcessorProviders += recorder }
+        }.compile()
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        return seen
+    }
+
     @Test fun aTypealiasFileOriginatesEveryFlagTypedThroughIt() {
         val files = originatingFiles(
             source("Aliases.kt", "typealias Names = List<String>\ntypealias MoreNames = Names\ntypealias Key = String"),
@@ -81,5 +118,74 @@ class TypeMappingTest {
             source("Holder.kt", "interface HolderFlags {\n    val legacy: FlagRecords<Legacy>\n}"),
         )
         assertEquals(setOf("Record.kt", "Codec.kt"), split.getValue("legacy"))
+    }
+
+    @Test fun aGenericTypealiasIsExpandedWithItsArguments() {
+        val results = mapped(
+            source(
+                "Aliases.kt",
+                "typealias Named<T> = List<T>\ntypealias Table<T> = Map<String, List<T>>\ntypealias Chained<T> = Named<T>",
+            ),
+            source(
+                "Holder.kt",
+                """
+                interface HolderFlags {
+                    val named: Named<String>
+                    val table: Table<Int>
+                    val chained: Chained<String>
+                    val directNamed: List<String>
+                    val directTable: Map<String, List<Int>>
+                }
+                """,
+            ),
+        )
+        fun codec(name: String): String {
+            val result = results.getValue(name)
+            assertTrue(result is TypeMapping.Result.Supported, "$name: $result")
+            return result.codec.toString()
+        }
+        assertEquals(codec("directNamed"), codec("named"))
+        assertEquals(codec("directTable"), codec("table"))
+        assertEquals(codec("directNamed"), codec("chained"))
+    }
+
+    @Test fun aNullableRecordReachedThroughATypealiasIsUnsupported() {
+        val results = mapped(
+            source(
+                "Endpoint.kt",
+                "@FlagRecord data class Endpoint(@FlagRecordKey val name: String)\ntypealias MaybeEndpoint = Endpoint?",
+            ),
+            source("Holder.kt", "interface HolderFlags {\n    val endpoints: FlagRecords<MaybeEndpoint>\n}"),
+        )
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("endpoints"))
+    }
+
+    @Test fun unsupportedTypesSayWhichRecordIfAny() {
+        val results = mapped(
+            source(
+                "Endpoint.kt",
+                "@FlagRecord data class Endpoint(@FlagRecordKey val name: String)\n" +
+                    "typealias Named<T> = List<T>\ntypealias Opt<T> = List<T>?",
+            ),
+            source(
+                "Holder.kt",
+                """
+                interface HolderFlags {
+                    val opt: Opt<String>
+                    val star: Named<*>
+                    val set: Set<String>
+                    val intKeyed: Map<Int, String>
+                    val uuid: java.util.UUID
+                    val endpoint: Endpoint
+                }
+                """,
+            ),
+        )
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("opt"))
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("star"))
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("set"))
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("intKeyed"))
+        assertEquals(TypeMapping.Result.Unsupported(null), results.getValue("uuid"))
+        assertEquals(TypeMapping.Result.Unsupported("Endpoint"), results.getValue("endpoint"))
     }
 }

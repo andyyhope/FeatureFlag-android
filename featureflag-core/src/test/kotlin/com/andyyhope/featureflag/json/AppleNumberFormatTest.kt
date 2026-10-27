@@ -19,6 +19,23 @@ class AppleNumberFormatTest {
     }
 
     @Test
+    fun gRoundsTheExactBinaryValueToTheGivenSignificantDigits() {
+        assertEquals("0.10000000000000001", AppleNumberFormat.g(0.1, 17))
+        assertEquals("0.1", AppleNumberFormat.g(0.1, 16))
+        assertEquals("1.5e+300", AppleNumberFormat.g(1.5e300, 16))
+        assertEquals("1.234567890123457e+17", AppleNumberFormat.g(123456789012345680.0, 16))
+        assertEquals("-1.5e-07", AppleNumberFormat.g(-1.5e-7, 16))
+        assertEquals("3", AppleNumberFormat.g(3.0, 16))
+    }
+
+    @Test
+    fun exponentialWritesTheMantissaAndASignedTwoDigitExponent() {
+        assertEquals("1.5e+300", AppleNumberFormat.exponential("15", 300))
+        assertEquals("1e-07", AppleNumberFormat.exponential("1", -7))
+        assertEquals("1e+21", AppleNumberFormat.exponential("1", 21))
+    }
+
+    @Test
     fun probeFactsHold() {
         assertEquals("3", AppleNumberFormat.format(3.0))
         assertEquals("0.10000000000000001", AppleNumberFormat.format(0.1))

@@ -1,5 +1,14 @@
 package com.andyyhope.featureflag.ksp
 
+import com.google.devtools.ksp.processing.Resolver
+import com.google.devtools.ksp.processing.SymbolProcessor
+import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.configureKsp
+import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
+import java.io.OutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -193,6 +202,40 @@ class ContainerDiagnosticTest {
         ),
     )
 
+    @Test fun aNullableGroupIsRejected() = assertEquals(
+        listOf(at(16, "'checkout' is a '@FlagGroup', but 'CheckoutFlags?' is not a '@FlagContainer' interface")),
+        errors(
+            """
+            @FlagContainer
+            interface CheckoutFlags
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "Checkout")
+                val checkout: CheckoutFlags?
+            }
+            """,
+        ),
+    )
+
+    @Test fun aGroupThroughANullableTypealiasIsRejectedLikeANullableGroup() = assertEquals(
+        listOf(at(18, "'checkout' is a '@FlagGroup', but 'MaybeCheckout' is not a '@FlagContainer' interface")),
+        errors(
+            """
+            @FlagContainer
+            interface CheckoutFlags
+
+            typealias MaybeCheckout = CheckoutFlags?
+
+            @FlagContainer
+            interface AppFlags {
+                @FlagGroup(description = "Checkout")
+                val checkout: MaybeCheckout
+            }
+            """,
+        ),
+    )
+
     @Test fun aGroupWithAGetterIsRejected() = assertEquals(
         listOf(at(16, "'checkout' is a '@FlagGroup', so the generated code provides it: remove its getter")),
         errors(
@@ -342,6 +385,22 @@ class ContainerDiagnosticTest {
         ),
     )
 
+    @Test fun aContainerInsideAPrivateInterfaceIsRefused() = assertEquals(
+        listOf(at(12, Diagnostics.containerPrivate("Inner"))),
+        errors(
+            """
+            private interface Outer {
+                @FlagContainer
+                interface Inner {
+                    @Flag(description = "Beta")
+                    val beta: Boolean get() = false
+                }
+            }
+            """,
+            "Inner",
+        ),
+    )
+
     @Test fun aGroupCycleIsReportedOnEveryGroupInIt() = assertEquals(
         listOf(
             at(13, "'@FlagGroup' 'b' makes 'A' contain itself (A → B → A), so its flags could never finish building"),
@@ -473,4 +532,95 @@ class ContainerDiagnosticTest {
             "Empty", "AppFlags",
         ),
     )
+
+    /** An incremental build: only `A` is in the round. Returns the names `cycles` finds, and the compiler messages. */
+    @OptIn(ExperimentalCompilerApi::class)
+    private fun cyclesFromA(body: String): Pair<Set<String>?, String> {
+        var cyclic: Set<String>? = null
+        val provider = SymbolProcessorProvider { environment ->
+            object : SymbolProcessor {
+                override fun process(resolver: Resolver): List<KSAnnotated> {
+                    val a = resolver.getClassDeclarationByName(resolver.getKSNameFromString("app.A")) as KSClassDeclaration
+                    cyclic = Checks(resolver, environment.logger).cycles(listOf(a))
+                        .map { it.simpleName.asString() }.toSet()
+                    return emptyList()
+                }
+            }
+        }
+        val result = KotlinCompilation().apply {
+            sources = listOf(source("AppFlags.kt", body))
+            inheritClassPath = true
+            messageOutputStream = OutputStream.nullOutputStream()
+            configureKsp(useKsp2 = true) { symbolProcessorProviders += provider }
+        }.compile()
+        return cyclic to result.messages
+    }
+
+    @Test
+    fun aCycleThroughAContainerOutsideTheRoundIsFound() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+
+            @FlagContainer
+            interface B {
+                @FlagGroup(description = "a")
+                val a: A
+            }
+            """,
+        )
+        assertEquals(setOf("A"), cyclic)
+        assertTrue(Diagnostics.groupCycle("b", "A", "A → B → A") in messages, messages)
+    }
+
+    @Test
+    fun aCycleBesideTheRoundThatDoesNotReturnToItIsNotReportedAndTerminates() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+
+            @FlagContainer
+            interface B {
+                @FlagGroup(description = "c")
+                val c: C
+            }
+
+            @FlagContainer
+            interface C {
+                @FlagGroup(description = "b")
+                val b: B
+            }
+            """,
+        )
+        assertEquals(emptySet(), cyclic)
+        assertTrue("makes 'A' contain itself" !in messages, messages)
+    }
+
+    @Test
+    fun aGroupTargetOutsideTheRoundThatIsNotAContainerIsIgnored() {
+        val (cyclic, messages) = cyclesFromA(
+            """
+            @FlagContainer
+            interface A {
+                @FlagGroup(description = "p")
+                val p: P
+            }
+
+            interface P {
+                @FlagGroup(description = "a")
+                val a: A
+            }
+            """,
+        )
+        assertEquals(emptySet(), cyclic)
+        assertTrue("contain itself" !in messages, messages)
+    }
 }
