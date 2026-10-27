@@ -94,6 +94,7 @@ Every tag is built by [JitPack](https://jitpack.io). The group is
 `com.github.andyyhope.FeatureFlag-android` and the artifact ids are the module names above.
 Add the repository in `settings.gradle.kts`, limited to that group:
 
+<!-- snippet-ignore: JitPack coordinates, which no build in this repository resolves -->
 ```kts
 dependencyResolutionManagement {
     repositories {
@@ -109,6 +110,7 @@ dependencyResolutionManagement {
 
 Then use the BOM, so one tag fixes every version:
 
+<!-- snippet-ignore: JitPack coordinates, which no build in this repository resolves -->
 ```kts
 dependencies {
     implementation(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.0"))
