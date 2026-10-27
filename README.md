@@ -88,6 +88,41 @@ in `gradle.properties` — see [Getting started](docs/GettingStarted.md#1-add-th
 | `featureflag-test` | `assertFlagsFullyMapped` | Your tests |
 | `featureflag-bom` | One version for all of the above | `platform(…)`, for `implementation` and `ksp` |
 
+### Install from JitPack
+
+Every tag is built by [JitPack](https://jitpack.io). The group is
+`com.github.andyyhope.FeatureFlag-android` and the artifact ids are the module names above.
+Add the repository in `settings.gradle.kts`, limited to that group:
+
+```kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        exclusiveContent {
+            forRepository { maven("https://jitpack.io") }
+            filter { includeGroup("com.github.andyyhope.FeatureFlag-android") }
+        }
+    }
+}
+```
+
+Then use the BOM, so one tag fixes every version:
+
+```kts
+dependencies {
+    implementation(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.0"))
+    ksp(platform("com.github.andyyhope.FeatureFlag-android:featureflag-bom:0.1.0"))
+
+    implementation("com.github.andyyhope.FeatureFlag-android:featureflag-android")
+    implementation("com.github.andyyhope.FeatureFlag-android:featureflag-bridge")
+    ksp("com.github.andyyhope.FeatureFlag-android:featureflag-ksp")
+    testImplementation("com.github.andyyhope.FeatureFlag-android:featureflag-test")
+}
+```
+
+The `mavenLocal` route above publishes the group `com.andyyhope.featureflag` instead.
+
 ## Requirements
 
 - Android, minimum SDK 26.
