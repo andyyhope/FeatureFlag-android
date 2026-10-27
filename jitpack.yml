@@ -1,0 +1,4 @@
+jdk:
+  - openjdk21
+install:
+  - ./gradlew --no-daemon --no-configuration-cache -PGROUP=com.github.andyyhope.FeatureFlag-android -PVERSION_NAME=$VERSION :featureflag-core:publishToMavenLocal :featureflag-ksp:publishToMavenLocal :featureflag-test:publishToMavenLocal :featureflag-android:publishToMavenLocal :featureflag-bridge:publishToMavenLocal :featureflag-ui:publishToMavenLocal :featureflag-bom:publishToMavenLocal
