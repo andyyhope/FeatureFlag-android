@@ -1,0 +1,5 @@
+{
+  "featureToggles": { "onboarding": { "v2": true } },
+  "config": { "pageSize": 20, "tier": "pro", "markets": ["AU", "NZ"] },
+  "meta": { "version": 3 }
+}

@@ -9,6 +9,8 @@ dependencies {
     implementation(libs.android.gradle.plugin)
     implementation(libs.detekt.gradle.plugin)
     implementation(libs.compose.compiler.gradle.plugin)
+    implementation(libs.vanniktech.publish.plugin)
+    implementation(libs.dokka.gradle.plugin)
 }
 
 gradlePlugin {
@@ -21,6 +23,10 @@ gradlePlugin {
             id = "featureflag.android-library"
             implementationClass = "AndroidLibraryConventionPlugin"
         }
+        register("androidApplication") {
+            id = "featureflag.android-application"
+            implementationClass = "AndroidApplicationConventionPlugin"
+        }
         register("detekt") {
             id = "featureflag.detekt"
             implementationClass = "DetektConventionPlugin"
@@ -28,6 +34,10 @@ gradlePlugin {
         register("fixtures") {
             id = "featureflag.fixtures"
             implementationClass = "FixturesConventionPlugin"
+        }
+        register("publish") {
+            id = "featureflag.publish"
+            implementationClass = "PublishConventionPlugin"
         }
         register("compose") {
             id = "featureflag.compose"

@@ -144,7 +144,7 @@ class SignalsScreenTest {
     fun theDelayFooterFollowsTheChoice() {
         show(grouped)
         composeRule.onNodeWithText(
-            "Sent the moment you tap. The app has to be running to hear it, and opening this one puts it in the background.",
+            "Sent the moment you tap. If the app isn't running, Android starts it to deliver the signal.",
         ).assertExists()
 
         composeRule.onNodeWithText("5s").performClick()

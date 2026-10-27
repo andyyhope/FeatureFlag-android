@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A host, com.example.app, that also trusts a companion signed with another key. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- region snippet: bridge-known-signer -->
+    <permission
+        android:name="com.example.app.permission.FEATURE_FLAG_BRIDGE"
+        android:knownCerts="@array/featureflag_companion_certificates"
+        android:protectionLevel="signature|knownSigner"
+        tools:replace="android:protectionLevel" />
+    <!-- endregion -->
+</manifest>

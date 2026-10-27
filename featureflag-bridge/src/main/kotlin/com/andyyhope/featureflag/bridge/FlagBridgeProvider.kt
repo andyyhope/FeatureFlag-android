@@ -292,10 +292,10 @@ public class FlagBridgeProvider : ContentProvider() {
         val STARTUP_TIMEOUT = 10.seconds
         val REPLY_MARGIN = 100.milliseconds
         val MAX_DELIVERY = 30.seconds
-        const val SCHEMA_PATH = "/schema"
-        const val DECODE_ATTEMPTS = 2
+        private const val SCHEMA_PATH = "/schema"
+        private const val DECODE_ATTEMPTS = 2
 
         // Far more than the binder threads that can be waiting at once.
-        const val MAX_CANCELLATIONS = 64
+        private const val MAX_CANCELLATIONS = 64
     }
 }

@@ -1,5 +1,6 @@
 plugins {
     id("featureflag.jvm-library")
+    id("featureflag.publish")
 }
 
 dependencies {

@@ -1,0 +1,216 @@
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeClient {
+	public synthetic fun <init> (Landroid/content/Context;Ljava/lang/String;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Landroid/content/Context;Ljava/lang/String;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun connect (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getHostPackage ()Ljava/lang/String;
+	public final fun getTimeout-UwyO8pc ()J
+	public final fun send-vLdBGDU (Lcom/andyyhope/featureflag/signals/FlagSignal;JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun send-vLdBGDU$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeClient;Lcom/andyyhope/featureflag/signals/FlagSignal;JJLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun source (Lcom/andyyhope/featureflag/schema/FlagSchema;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun source$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeClient;Lcom/andyyhope/featureflag/schema/FlagSchema;Ljava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public abstract fun getMessage ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$BridgeNotInstalled : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$BridgeNotInstalled;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$BridgeNotInstalled;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$BridgeNotInstalled;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHostPackage ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Connected : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Lcom/andyyhope/featureflag/schema/FlagSchema;)V
+	public final fun component1 ()Lcom/andyyhope/featureflag/schema/FlagSchema;
+	public final fun copy (Lcom/andyyhope/featureflag/schema/FlagSchema;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Connected;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Connected;Lcom/andyyhope/featureflag/schema/FlagSchema;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Connected;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getMessage ()Ljava/lang/String;
+	public final fun getSchema ()Lcom/andyyhope/featureflag/schema/FlagSchema;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$HostNotFound : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$HostNotFound;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$HostNotFound;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$HostNotFound;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHostPackage ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Incompatible : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Incompatible;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Incompatible;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Incompatible;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getMessage ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$NotPublished : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public static final field INSTANCE Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$NotPublished;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$PermissionDenied : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$PermissionDenied;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$PermissionDenied;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$PermissionDenied;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCompanionCertificates ()Ljava/util/List;
+	public final fun getHostCertificates ()Ljava/util/List;
+	public final fun getHostPackage ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Unresponsive : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public synthetic fun <init> (Ljava/lang/String;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2-UwyO8pc ()J
+	public final fun copy-HG0u8IE (Ljava/lang/String;J)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Unresponsive;
+	public static synthetic fun copy-HG0u8IE$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Unresponsive;Ljava/lang/String;JILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$Unresponsive;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHostPackage ()Ljava/lang/String;
+	public fun getMessage ()Ljava/lang/String;
+	public final fun getTimeout-UwyO8pc ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeConnection$UsesPermissionMissing : com/andyyhope/featureflag/android/bridge/FlagBridgeConnection {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$UsesPermissionMissing;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$UsesPermissionMissing;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/bridge/FlagBridgeConnection$UsesPermissionMissing;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getMessage ()Ljava/lang/String;
+	public final fun getPermission ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeContract {
+	public static final field INSTANCE Lcom/andyyhope/featureflag/android/bridge/FlagBridgeContract;
+	public static final field KEY_DEADLINE Ljava/lang/String;
+	public static final field KEY_DELAY Ljava/lang/String;
+	public static final field KEY_HANDLED Ljava/lang/String;
+	public static final field KEY_MESSAGE Ljava/lang/String;
+	public static final field KEY_PAYLOAD Ljava/lang/String;
+	public static final field KEY_PROTOCOL Ljava/lang/String;
+	public static final field KEY_REMOVE Ljava/lang/String;
+	public static final field KEY_SIZE Ljava/lang/String;
+	public static final field KEY_STATUS Ljava/lang/String;
+	public static final field KEY_TICKET Ljava/lang/String;
+	public static final field MAX_PAYLOAD_BYTES I
+	public static final field METHOD_APPLY Ljava/lang/String;
+	public static final field METHOD_CANCEL Ljava/lang/String;
+	public static final field METHOD_HELLO Ljava/lang/String;
+	public static final field METHOD_OVERRIDES Ljava/lang/String;
+	public static final field METHOD_SIGNAL Ljava/lang/String;
+	public static final field PREFERENCES_NAME Ljava/lang/String;
+	public static final field PROTOCOL I
+	public static final field SCHEMA_DIRECTORY Ljava/lang/String;
+	public static final field STATUS_NOT_PUBLISHED Ljava/lang/String;
+	public static final field STATUS_OK Ljava/lang/String;
+	public static final field STATUS_REJECTED Ljava/lang/String;
+	public static final field STATUS_TOO_LARGE Ljava/lang/String;
+	public final fun authority (Ljava/lang/String;)Ljava/lang/String;
+	public final fun getMAX_DELAY-UwyO8pc ()J
+	public final fun overridesUri (Ljava/lang/String;)Landroid/net/Uri;
+	public final fun permission (Ljava/lang/String;)Ljava/lang/String;
+	public final fun schemaDirectory (Landroid/content/Context;)Ljava/io/File;
+	public final fun schemaUri (Ljava/lang/String;)Landroid/net/Uri;
+}
+
+public abstract class com/andyyhope/featureflag/android/bridge/FlagBridgeException : java/lang/RuntimeException {
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeException$NotPublished : com/andyyhope/featureflag/android/bridge/FlagBridgeException {
+	public fun <init> ()V
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeException$Rejected : com/andyyhope/featureflag/android/bridge/FlagBridgeException {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getReason ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeException$TooLarge : com/andyyhope/featureflag/android/bridge/FlagBridgeException {
+	public fun <init> (II)V
+	public final fun getBytes ()I
+	public final fun getLimit ()I
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeException$Unavailable : com/andyyhope/featureflag/android/bridge/FlagBridgeException {
+	public fun <init> (Ljava/lang/Throwable;)V
+}
+
+public final class com/andyyhope/featureflag/android/bridge/FlagBridgeSource : com/andyyhope/featureflag/sources/MutableFlagValueSource, java/lang/AutoCloseable {
+	public fun box-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;)Lcom/andyyhope/featureflag/values/FlagValueBox;
+	public fun close ()V
+	public fun getChanges ()Lkotlinx/coroutines/flow/Flow;
+	public final fun getLastFailure ()Lkotlinx/coroutines/flow/StateFlow;
+	public fun getSourceName ()Ljava/lang/String;
+	public final fun refresh ()V
+	public fun setBox-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueBox;)V
+	public fun setBoxes (Ljava/util/Map;)V
+}
+
+public final class com/andyyhope/featureflag/android/signals/FlagSignalChannel {
+	public static final field Companion Lcom/andyyhope/featureflag/android/signals/FlagSignalChannel$Companion;
+	public final fun deliver-HG0u8IE (Ljava/lang/String;J)Z
+	public static synthetic fun deliver-HG0u8IE$default (Lcom/andyyhope/featureflag/android/signals/FlagSignalChannel;Ljava/lang/String;JILjava/lang/Object;)Z
+	public final fun observe (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/lang/AutoCloseable;
+}
+
+public final class com/andyyhope/featureflag/android/signals/FlagSignalChannel$Companion {
+	public final fun getDELIVERY_TIMEOUT-UwyO8pc ()J
+	public final fun getHost ()Lcom/andyyhope/featureflag/android/signals/FlagSignalChannel;
+}
+
+public final class com/andyyhope/featureflag/android/sources/SharedPreferencesSource : com/andyyhope/featureflag/sources/MutableFlagValueSource, java/lang/AutoCloseable {
+	public static final field Companion Lcom/andyyhope/featureflag/android/sources/SharedPreferencesSource$Companion;
+	public fun <init> (Landroid/content/SharedPreferences;Ljava/lang/String;)V
+	public synthetic fun <init> (Landroid/content/SharedPreferences;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun box-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueType;)Lcom/andyyhope/featureflag/values/FlagValueBox;
+	public fun close ()V
+	public fun getChanges ()Lkotlinx/coroutines/flow/Flow;
+	public fun getSourceName ()Ljava/lang/String;
+	public final fun refresh ()V
+	public fun setBox-ZdqOJ8Q (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueBox;)V
+	public fun setBoxes (Ljava/util/Map;)V
+}
+
+public final class com/andyyhope/featureflag/android/sources/SharedPreferencesSource$Companion {
+	public final fun companion (Landroid/content/Context;Ljava/lang/String;)Lcom/andyyhope/featureflag/android/sources/SharedPreferencesSource;
+	public static synthetic fun companion$default (Lcom/andyyhope/featureflag/android/sources/SharedPreferencesSource$Companion;Landroid/content/Context;Ljava/lang/String;ILjava/lang/Object;)Lcom/andyyhope/featureflag/android/sources/SharedPreferencesSource;
+}
+
+public final class com/andyyhope/featureflag/android/transport/AndroidTransportKt {
+	public static final fun publishSchema (Lcom/andyyhope/featureflag/pole/FlagPole;Landroid/content/Context;)Ljava/io/File;
+}
+

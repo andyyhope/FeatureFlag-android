@@ -150,12 +150,15 @@ class FlagCompanionSmokeTest {
 
         selectTab("Signals")
         composeRule.onNodeWithText("Re-fetch remote configuration").performClick()
+        // The recent results follow both groups, so on a short screen their row is not composed until scrolled to.
+        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("handled"))
         composeRule.onNodeWithText("handled").assertExists()
         capture("3-signals")
 
         selectTab("Flags")
         composeRule.onNodeWithText("Demo").assertExists()
         capture("4-flags")
+        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Checkout"))
         composeRule.onNodeWithText("Checkout").performClick()
         composeRule.onNodeWithText("Apple Pay").assertExists()
         capture("5-flags-checkout")

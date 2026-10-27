@@ -12,6 +12,7 @@ import androidx.core.content.IntentCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.andyyhope.featureflag.errors.FlagQRCodeException
+import com.andyyhope.featureflag.transport.FlagQRCode
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
 import com.andyyhope.featureflag.ui.share.forgetFileProviderStrategies
 import com.andyyhope.featureflag.values.FlagKey
@@ -102,8 +103,11 @@ class QrSheetTest {
 
         composeRule.onNodeWithText("Copy code").performClick()
 
-        assertEquals(store.qrCode(), clipboardText())
-        assertTrue(store.qrCode().startsWith("FFQR1:"))
+        // The code carries an export timestamp, so a second export can differ: compare what it decodes to.
+        val copied = checkNotNull(clipboardText())
+        assertTrue(copied.startsWith("FFQR1:"))
+        val decoded = FlagQRCode.decode(copied, store.schema)
+        assertEquals(mapOf(FlagKey("new-onboarding") to FlagValueBox.Bool(true)), decoded.values)
     }
 
     @Test

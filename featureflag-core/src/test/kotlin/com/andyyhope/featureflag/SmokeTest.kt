@@ -9,19 +9,14 @@ import kotlin.test.assertNotNull
 
 class SmokeTest {
     @Test
-    fun versionIsExposed() {
-        assertEquals("0.1.0-SNAPSHOT", FeatureFlag.VERSION)
-    }
-
-    @Test
     fun fixturesPathIsPassedToTests() {
         assertNotNull(System.getProperty("featureflag.fixtures"))
     }
 
     @Test
     fun coroutineTestToolingIsOnTheClasspath() = runTest {
-        flowOf(FeatureFlag.VERSION).test {
-            assertEquals(FeatureFlag.VERSION, awaitItem())
+        flowOf("ready").test {
+            assertEquals("ready", awaitItem())
             awaitComplete()
         }
     }

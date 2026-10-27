@@ -37,18 +37,21 @@ public fun FlagPole<*>.exportJson(): ByteArray = exportPayload().jsonBytes()
  */
 public fun FlagPole<*>.importJson(bytes: ByteArray): FlagPayload {
     val payload = FlagPayload.decode(bytes, schema)
-    apply(payload)
+    applyPayload(payload)
     return payload
 }
 
 /**
- * Applies an already-decoded payload as overrides in the top mutable source.
+ * Applies an already-decoded payload as overrides in the top mutable source, as [importJson]
+ * and [importQRCode] do once they have decoded one. It is not called `apply`, which reads as
+ * the standard library's scope function and as `RemoteOverrideSource.apply`, which replaces a
+ * remote layer rather than writing overrides.
  *
  * If a write throws partway, the writes already made are undone before the error
  * propagates. The undo is best effort: a source that has stopped accepting writes will
  * refuse the undo as well.
  */
-public fun FlagPole<*>.apply(payload: FlagPayload) {
+public fun FlagPole<*>.applyPayload(payload: FlagPayload) {
     val types = ImportRules(schema).types
     val undo = ArrayList<Pair<FlagKey, FlagValueBox?>>()
     var completed = false
@@ -82,6 +85,6 @@ public fun FlagPole<*>.qrCodeString(): String = FlagQRCode.encode(exportPayload(
  */
 public fun FlagPole<*>.importQRCode(text: String): FlagPayload {
     val payload = FlagQRCode.decode(text, schema)
-    apply(payload)
+    applyPayload(payload)
     return payload
 }

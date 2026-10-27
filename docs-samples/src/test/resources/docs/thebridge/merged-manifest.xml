@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What featureflag-bridge merges into a host whose application id is com.example.app. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- region snippet: bridge-merged-manifest -->
+    <permission
+        android:name="com.example.app.permission.FEATURE_FLAG_BRIDGE"
+        android:protectionLevel="signature" />
+
+    <application>
+        <provider
+            android:name="com.andyyhope.featureflag.bridge.FlagBridgeProvider"
+            android:authorities="com.example.app.featureflag"
+            android:exported="true"
+            android:permission="com.example.app.permission.FEATURE_FLAG_BRIDGE" />
+    </application>
+    <!-- endregion -->
+</manifest>

@@ -1,0 +1,307 @@
+public final class com/andyyhope/featureflag/ui/FlagCompanionKt {
+	public static final fun FlagCompanion-45ZY6uE (Ljava/lang/String;Landroidx/compose/ui/Modifier;Ljava/util/List;JLandroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class com/andyyhope/featureflag/ui/FlagCompanionScope {
+	public abstract fun FlagRow (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun getStore ()Lcom/andyyhope/featureflag/ui/editing/FlagEditingStore;
+}
+
+public abstract interface class com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field Companion Lcom/andyyhope/featureflag/ui/FlagCompanionTab$Companion;
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getTitle ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Companion {
+	public final fun getDefaults ()Ljava/util/List;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Custom : com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Landroidx/compose/ui/graphics/vector/ImageVector;Lkotlin/jvm/functions/Function3;)V
+	public final fun getContent ()Lkotlin/jvm/functions/Function3;
+	public final fun getIcon ()Landroidx/compose/ui/graphics/vector/ImageVector;
+	public fun getId ()Ljava/lang/String;
+	public fun getTitle ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Detail : com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun getId ()Ljava/lang/String;
+	public final fun getKey ()Ljava/lang/String;
+	public fun getTitle ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Flags : com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/FlagCompanionTab$Flags;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getId ()Ljava/lang/String;
+	public fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Overrides : com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/FlagCompanionTab$Overrides;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getId ()Ljava/lang/String;
+	public fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/FlagCompanionTab$Signals : com/andyyhope/featureflag/ui/FlagCompanionTab {
+	public static final field $stable I
+	public fun <init> ([Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroup;Ljava/lang/String;)V
+	public synthetic fun <init> ([Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroup;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getGroups ()Ljava/util/List;
+	public fun getId ()Ljava/lang/String;
+	public fun getTitle ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditingStore {
+	public static final field $stable I
+	public fun <init> (Lcom/andyyhope/featureflag/schema/FlagSchema;Lcom/andyyhope/featureflag/sources/MutableFlagValueSource;Lkotlinx/coroutines/CoroutineDispatcher;)V
+	public synthetic fun <init> (Lcom/andyyhope/featureflag/schema/FlagSchema;Lcom/andyyhope/featureflag/sources/MutableFlagValueSource;Lkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun entry-WWofv0o (Ljava/lang/String;)Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;
+	public final fun exportJson ()Ljava/lang/String;
+	public final fun getCopyableQrCode ()Ljava/lang/String;
+	public final fun getOverriddenKeys ()Ljava/util/List;
+	public final fun getRevision ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getSchema ()Lcom/andyyhope/featureflag/schema/FlagSchema;
+	public final fun getTree ()Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;
+	public final fun import (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun isOverridden (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Z
+	public final fun observeIn (Lkotlinx/coroutines/CoroutineScope;)Lkotlinx/coroutines/Job;
+	public final fun overriddenCount (Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;)I
+	public final fun qrCode ()Ljava/lang/String;
+	public final fun records (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Ljava/util/List;
+	public final fun reset (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resetAll (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun sections (Ljava/lang/String;)Ljava/util/List;
+	public static synthetic fun sections$default (Lcom/andyyhope/featureflag/ui/editing/FlagEditingStore;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/List;
+	public final fun setRecords (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setValue (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;Lcom/andyyhope/featureflag/values/FlagValueBox;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun value (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Lcom/andyyhope/featureflag/values/FlagValueBox;
+}
+
+public abstract interface class com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public fun getWantsWrappingEditor ()Z
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Data : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Data;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Date : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Date;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Decimal : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Decimal;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$DefaultImpls {
+	public static fun getWantsWrappingEditor (Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind;)Z
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Integer : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Integer;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Json : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Json;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$List : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public fun <init> (Lcom/andyyhope/featureflag/values/FlagValueType;)V
+	public final fun component1 ()Lcom/andyyhope/featureflag/values/FlagValueType;
+	public final fun copy (Lcom/andyyhope/featureflag/values/FlagValueType;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$List;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$List;Lcom/andyyhope/featureflag/values/FlagValueType;ILjava/lang/Object;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$List;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getElement ()Lcom/andyyhope/featureflag/values/FlagValueType;
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Picker : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Picker;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Picker;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Picker;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCases ()Ljava/util/List;
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Records : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Records;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Records;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Records;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFields ()Ljava/util/List;
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Text : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Text;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Toggle : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Toggle;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKind$Url : com/andyyhope/featureflag/ui/editing/FlagEditorKind {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind$Url;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWantsWrappingEditor ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagEditorKindKt {
+	public static final fun getEditorKind (Lcom/andyyhope/featureflag/schema/FlagSchema$Entry;)Lcom/andyyhope/featureflag/ui/editing/FlagEditorKind;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagRecordEditingException : java/lang/RuntimeException {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Lcom/andyyhope/featureflag/values/FlagValueBox;)V
+	public final fun getField ()Ljava/lang/String;
+	public final fun getValue ()Lcom/andyyhope/featureflag/values/FlagValueBox;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagSection {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/andyyhope/featureflag/ui/editing/FlagSection;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/ui/editing/FlagSection;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/ui/editing/FlagSection;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntries ()Ljava/util/List;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPath ()Ljava/util/List;
+	public final fun getPathDescription ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagTreeNode {
+	public static final field $stable I
+	public static final field Companion Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode$Companion;
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;
+	public static synthetic fun copy$default (Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllFlags ()Ljava/util/List;
+	public final fun getFlags ()Ljava/util/List;
+	public final fun getGroups ()Ljava/util/List;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPath ()Ljava/util/List;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isEmpty ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/editing/FlagTreeNode$Companion {
+	public final fun of (Lcom/andyyhope/featureflag/schema/FlagSchema;)Lcom/andyyhope/featureflag/ui/editing/FlagTreeNode;
+}
+
+public final class com/andyyhope/featureflag/ui/share/FlagFileProvider : androidx/core/content/FileProvider {
+	public static final field $stable I
+	public fun <init> ()V
+}
+
+public final class com/andyyhope/featureflag/ui/signals/FlagSignalDelay : java/lang/Enum {
+	public static final field Five Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+	public static final field Instant Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+	public static final field Ten Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+	public static final field Three Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+	public final fun getDuration-UwyO8pc ()J
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getLabel ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+	public static fun values ()[Lcom/andyyhope/featureflag/ui/signals/FlagSignalDelay;
+}
+
+public final class com/andyyhope/featureflag/ui/signals/FlagSignalGroup {
+	public static final field $stable I
+	public static final field AUTOMATIC_NESTING_THRESHOLD I
+	public static final field Companion Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroup$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDisplay ()Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSignals ()Ljava/util/List;
+	public final fun getTitle ()Ljava/lang/String;
+}
+
+public final class com/andyyhope/featureflag/ui/signals/FlagSignalGroup$Companion {
+}
+
+public final class com/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay : java/lang/Enum {
+	public static final field Automatic Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+	public static final field Flat Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+	public static final field Nested Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+	public static fun values ()[Lcom/andyyhope/featureflag/ui/signals/FlagSignalGroupDisplay;
+}
+

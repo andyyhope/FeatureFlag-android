@@ -1,5 +1,7 @@
 plugins {
     id("featureflag.android-library")
+    alias(libs.plugins.android.bcv.bridge)
+    id("featureflag.publish")
 }
 
 android {
