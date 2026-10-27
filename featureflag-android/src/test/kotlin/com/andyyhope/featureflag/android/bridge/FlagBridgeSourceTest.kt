@@ -173,6 +173,8 @@ class FlagBridgeSourceTest {
 
     @Test
     fun setBoxSendsOneApplyAndAnnouncesTheKey() = runBlocking<Unit> {
+        // Without this the host's own announcement can let a refresh overtake the write (see aWriteOvertakenByANewerRefreshIsSkipped).
+        bridge.notifiesOnApply = false
         val source = source()
 
         source.changes.test {
@@ -187,6 +189,8 @@ class FlagBridgeSourceTest {
 
     @Test
     fun setBoxesSendsEveryChangeInOneApply() = runBlocking<Unit> {
+        // Without this the host's own announcement can let a refresh overtake the write (see aWriteOvertakenByANewerRefreshIsSkipped).
+        bridge.notifiesOnApply = false
         bridge.values = mapOf(limit to FlagValueBox.Int(3))
         val source = source()
 
