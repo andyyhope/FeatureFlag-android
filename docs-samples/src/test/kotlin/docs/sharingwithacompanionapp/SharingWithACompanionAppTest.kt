@@ -3,7 +3,10 @@ package docs.sharingwithacompanionapp
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.andyyhope.featureflag.android.bridge.FlagBridgeContract
+import com.andyyhope.featureflag.android.sources.SharedPreferencesSource
+import com.andyyhope.featureflag.android.transport.publishSchema
 import com.andyyhope.featureflag.pole.FlagPole
+import com.andyyhope.featureflag.remote.RemoteOverrideSource
 import com.andyyhope.featureflag.schema.FlagSchema
 import com.andyyhope.featureflag.sources.SnapshotSource
 import com.andyyhope.featureflag.transport.publishSchema
@@ -53,6 +56,29 @@ class SharingWithACompanionAppTest {
     @Test
     fun theSchemaCarriesEveryFlagAndGroup() {
         assertTrue(publishedSchema().contains("\"applicationName\" : \"Demo\""))
+    }
+
+    @Test
+    fun aConfigBeneathTheOverridesIsPublishedWithItsName() {
+        val text = publishedSchemaWithAConfig()
+
+        assertTrue(text.contains("\"effectiveValue\" : true"), text)
+        assertTrue(text.contains("\"effectiveSource\" : \"Staging config\""), text)
+    }
+
+    @Test
+    fun aHostRepublishesWhenASourceBeneathTheOverridesChanges() {
+        val context = ApplicationProvider.getApplicationContext<ExampleApplication>()
+        val config = RemoteOverrideSource(AppFlagsSpec)
+        val pole = FlagPole(AppFlagsSpec, sources = listOf(SharedPreferencesSource.companion(context), config))
+        val payload = "{}".encodeToByteArray()
+
+        // region snippet: sharing-republish
+        config.apply(payload) // a source beneath the overrides changed,
+        pole.publishSchema(context) // so publish again: an open companion reads it at once
+        // endregion
+
+        assertTrue(File(FlagBridgeContract.schemaDirectory(context), FlagSchema.FILE_NAME).isFile)
     }
 
     @Test

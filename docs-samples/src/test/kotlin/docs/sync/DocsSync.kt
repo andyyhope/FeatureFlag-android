@@ -110,7 +110,9 @@ class DocsSync(
             "featureflag-bom",
         )
 
-        private val COORDINATE = Regex("""com\.andyyhope\.featureflag:([A-Za-z0-9._-]+):([^"'\s)]+)""")
+        /** A versioned coordinate in either group: Maven's, or JitPack's. A versionless one, as the BOM allows, is not one. */
+        private val COORDINATE =
+            Regex("""(?:com\.andyyhope\.featureflag|com\.github\.andyyhope\.FeatureFlag-android):([A-Za-z0-9._-]+):([^"'\s)]+)""")
 
         /** [relative] resolved against the directory of [from], or null if it climbs out of the repository. */
         fun resolve(from: String, relative: String): String? {

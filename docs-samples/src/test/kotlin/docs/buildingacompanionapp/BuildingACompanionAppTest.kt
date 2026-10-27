@@ -22,6 +22,7 @@ import org.robolectric.Robolectric
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** docs/BuildingACompanionApp.md. */
@@ -82,6 +83,7 @@ class BuildingACompanionAppTest {
 
         val value = store.value(entry) // the value in effect
         val isOverridden = store.isOverridden(entry)
+        val from = store.sourceName(entry) // "Preview" when overridden, the host's source, or null for the default
         store.setValue(entry, FlagValueBox.Bool(true)) // suspends: writes go to the source off the main thread
         store.reset(entry)
         store.resetAll()
@@ -93,6 +95,7 @@ class BuildingACompanionAppTest {
         assertEquals(0, badge)
         assertEquals(FlagValueBox.Bool(false), value)
         assertFalse(isOverridden)
+        assertNull(from)
         assertFalse(store.isOverridden(entry))
     }
 

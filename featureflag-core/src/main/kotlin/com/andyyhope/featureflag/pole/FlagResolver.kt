@@ -76,6 +76,16 @@ internal class FlagResolver(
 
     override fun box(key: FlagKey, type: FlagValueType): FlagValueBox? = resolution(key, type).box
 
+    /** As [resolution], skipping the source writes go to: what the flag reads when it has no override. */
+    fun resolutionBeneathOverrides(key: FlagKey, type: FlagValueType): FlagResolution {
+        for (source in sources) {
+            if (source === topMutableSource) continue
+            val box = source.box(key, type)
+            if (box != null && box.matches(type)) return FlagResolution(key, source.sourceName, box)
+        }
+        return FlagResolution(key, sourceName = null, box = null)
+    }
+
     /** Writes to the highest-priority source that accepts writes. */
     fun setOverride(key: FlagKey, box: FlagValueBox?) {
         writableSource().setBox(key, box)

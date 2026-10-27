@@ -3,6 +3,7 @@ package com.andyyhope.featureflag.ui.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasClickAction
@@ -17,6 +18,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
+import com.andyyhope.featureflag.ui.editing.withEffective
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +86,30 @@ class FlagRowTest {
 
         composeRule.onNodeWithText("Overridden").assertDoesNotExist()
         assertFalse(store.isOverridden(store.requireEntry("max-items")))
+    }
+
+    @Test
+    fun aFlagAConfigSuppliesShowsThatValueAndWhereItCameFrom() {
+        val store = testStore(ScreenFixtures.companion.withEffective("new-onboarding" to FlagValueBox.Bool(true)))
+        show(store, "new-onboarding")
+
+        composeRule.onNodeWithContentDescription("New onboarding experience").assertIsOn()
+        composeRule.onNodeWithText("From Environment (staging)").assertExists()
+        composeRule.onNodeWithText("Overridden").assertDoesNotExist()
+
+        composeRule.onNodeWithContentDescription("New onboarding experience").performClick()
+
+        // Now the companion's own value: the pill replaces the source.
+        composeRule.onNodeWithContentDescription("New onboarding experience").assertIsOff()
+        composeRule.onNodeWithText("Overridden").assertExists()
+        composeRule.onNodeWithText("From Environment (staging)").assertDoesNotExist()
+    }
+
+    @Test
+    fun aFlagOnItsDefaultNamesNoSource() {
+        show(testStore(ScreenFixtures.companion), "new-onboarding")
+
+        composeRule.onNode(hasText("From ", substring = true)).assertDoesNotExist()
     }
 
     @Test

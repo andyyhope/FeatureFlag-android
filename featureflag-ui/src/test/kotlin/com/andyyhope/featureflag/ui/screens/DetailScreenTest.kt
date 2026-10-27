@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.andyyhope.featureflag.ui.editing.FlagEditingStore
+import com.andyyhope.featureflag.ui.editing.withEffective
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
 import org.junit.Rule
@@ -81,6 +82,21 @@ class DetailScreenTest {
         composeRule.onAllNodesWithText("https://example.com").assertCountEquals(2)
         composeRule.onNodeWithText("Yes — checkout_endpoint").assertExists()
         composeRule.onNodeWithText("This flag carries a remote key, so a payload can change it.").assertExists()
+    }
+
+    @Test
+    fun anEnumAConfigSetsSelectsThatCaseAndNamesTheConfig() {
+        val store = testStore(ScreenFixtures.companion.withEffective("checkout.tier" to FlagValueBox.String("pro")))
+        show(store, "checkout.tier")
+
+        composeRule.onNodeWithText("Pro").assertIsSelected()
+        composeRule.onNodeWithText("Value from").assertExists()
+        composeRule.onNodeWithText("Environment (staging)").assertExists()
+
+        composeRule.onNodeWithText("Free").performClick()
+
+        composeRule.onNodeWithText("Free").assertIsSelected()
+        composeRule.onNodeWithText("Value from").assertDoesNotExist()
     }
 
     @Test

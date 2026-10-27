@@ -13,6 +13,7 @@ import docs.remoteoverrides.experimentsPayload
 import docs.remoteoverrides.onboardingPayload
 import docs.remoteoverrides.rejectionReport
 import docs.sharingwithacompanionapp.publishedSchema
+import docs.sharingwithacompanionapp.publishedSchemaWithAConfig
 import docs.troubleshooting.hostNotFoundMessage
 import docs.troubleshooting.notPublishedMessage
 import docs.troubleshooting.permissionDeniedMessage
@@ -47,6 +48,7 @@ object DocOutputs {
         "validating-record-defaults-report" to ::checkoutDefaultsReport,
         // SharingWithACompanionApp.md
         "sharing-schema" to ::publishedSchema,
+        "sharing-schema-effective" to ::publishedSchemaWithAConfig,
         // ExportingAndImporting.md
         "exporting-json" to ::exportedDocument,
         // Troubleshooting.md

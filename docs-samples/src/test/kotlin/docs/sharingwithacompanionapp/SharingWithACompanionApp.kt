@@ -8,6 +8,9 @@ import com.andyyhope.featureflag.android.sources.SharedPreferencesSource
 import com.andyyhope.featureflag.android.transport.publishSchema
 import com.andyyhope.featureflag.pole.FlagPole
 import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.sources.SnapshotSource
+import com.andyyhope.featureflag.values.FlagKey
+import com.andyyhope.featureflag.values.FlagValueBox
 import java.time.Instant
 
 @FlagContainer
@@ -34,6 +37,18 @@ class ExampleApplication : Application() {
     }
 }
 // endregion
+
+/** What a host publishes when a config beneath its overrides turns Google Pay on, at a fixed moment. */
+fun publishedSchemaWithAConfig(): String {
+    val googlePay = FlagKey("checkout.google-pay")
+    val config = SnapshotSource(name = "Staging config", values = mapOf(googlePay to FlagValueBox.Bool(true)))
+    val companion = SnapshotSource(name = "Companion")
+    val pole = FlagPole(AppFlagsSpec, sources = listOf(companion, config), applicationName = "Demo")
+    return pole.schemaWithEffectiveValues()
+        .copy(generatedAt = Instant.parse("2026-01-01T00:00:00Z"))
+        .jsonBytes()
+        .decodeToString()
+}
 
 /** The schema a host with [AppFlags] publishes, at a fixed moment. */
 fun publishedSchema(): String = FlagSchema

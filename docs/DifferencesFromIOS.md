@@ -114,6 +114,10 @@ two share. Each is one line on what differs and one on why.
   on, so the key is left out unless you give one.
 - **`publishSchema(context)` writes to `noBackupFilesDir`.** A restored backup never brings
   back another build's schema.
+- **A published schema carries each flag's effective value.** `effectiveValue` and
+  `effectiveSource` say what the flag reads beneath the overrides, so the companion shows a
+  bundled or remote config's value instead of the compiled default. iOS publishes neither,
+  and reads past both, since unknown keys are ignored.
 - **`applyPayload` returns nothing, and `importJson` and `importQRCode` return the payload
   they applied.** An import result adds nothing the payload does not already say.
 - **There are no property lists.** JSON is the only format, for export, import and
@@ -166,7 +170,9 @@ two share. Each is one line on what differs and one on why.
 - **Tabs are `FlagCompanionTab` values.** `Overrides`, `Flags`, `Signals`, `Detail` and
   `Custom`; two tabs with one id throw, and an empty list shows "No tabs".
 - **The companion reconnects every time it returns to the foreground.** A reinstalled
-  host with a new schema is picked up without restarting the companion.
+  host with a new schema is picked up without restarting the companion. It also reconnects
+  when the host announces a republished schema, and a second after it sends a signal, so a
+  host that restarts on a signal shows its new schema without a trip to the background.
 - **A signal group takes a list of entries, and its nesting threshold is fixed at six.**
   `FlagSignalGroup("Caches", CacheSignal.entries)`.
 - **`FlagEditingStore` writes suspend.** A write over the bridge is a call into the host.

@@ -33,6 +33,7 @@ class HostTestApplication : Application() {
             BridgeTestSignal.DieOnce,
             BridgeTestSignal.Slow,
             BridgeTestSignal.Record,
+            BridgeTestSignal.Republish,
         )
         observation = FlagSignalChannel.host.observe(observed) { signal ->
             when (signal) {
@@ -42,6 +43,8 @@ class HostTestApplication : Application() {
                 BridgeTestSignal.Slow -> Thread.sleep(SLOW_HANDLER_MILLIS)
                 // Leaves a trace the tests, in the other process, can read: one line per delivery.
                 BridgeTestSignal.Record -> File(filesDir, DELIVERIES_LOG).appendText("${signal.name}\n")
+                // What publishSchema(context) does once it has written the file: tells an open companion.
+                BridgeTestSignal.Republish -> contentResolver.notifyChange(FlagBridgeContract.schemaUri(packageName), null)
                 else -> Unit
             }
         }
@@ -67,7 +70,7 @@ class HostTestApplication : Application() {
 }
 
 /** The signals the host observes, plus one it does not. */
-enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Slow, Record, Unobserved }
+enum class BridgeTestSignal : FlagSignal { Purge, Explode, DieOnce, Slow, Record, Republish, Unobserved }
 
 /** The host's flags: one of every value type. */
 object BridgeTestHost {

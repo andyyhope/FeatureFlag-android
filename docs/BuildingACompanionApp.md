@@ -20,7 +20,7 @@ The companion depends on `featureflag-ui`, and on Compose itself to draw it:
 <!-- snippet: companion-install -->
 ```kts
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
     implementation("com.andyyhope.featureflag:featureflag-ui")
 
     implementation(platform("androidx.compose:compose-bom:2026.01.00"))
@@ -52,7 +52,10 @@ class CompanionActivity : ComponentActivity() {
 That is not an abbreviation of the real thing — it *is* the app. `FlagCompanion` connects
 to the host, reports anything in the way with a message someone can act on, and gives you
 Overrides and Flags as tabs. It reconnects whenever the companion comes back to the
-foreground, so a reinstalled host with new flags is picked up. None of it is specific to
+foreground, whenever the host announces a republished schema, and a second after it sends a
+signal, so a reinstalled host with new flags, or one that switched environment and
+republished under a new name, is picked up without restarting the companion. That reload, like
+any call through the bridge, starts the host again if the signal made it exit. None of it is specific to
 any host, so none of it is worth writing twice. It draws with your `MaterialTheme`.
 
 Two things make the connection possible, and both are described in
@@ -171,7 +174,10 @@ with a per-row reset, the exported JSON inline and copyable, and the actions tha
 overrides off the device: a QR code, which can be copied as an image, shared, or copied as
 text; sharing the JSON; importing; and resetting everything, which asks first.
 
-**Flags** answers *what can I change?* — the whole tree. Groups are rows you push into,
+**Flags** answers *what can I change?* — the whole tree. Each flag shows the value the host
+reads: your override, or else the value the host published from its other sources, such as
+a bundled config, with that source's name under it, or else the compiled default — see
+[The values your app actually reads](SharingWithACompanionApp.md#the-values-your-app-actually-reads). Groups are rows you push into,
 each showing how many flags it holds and how many are overridden; searching flattens the
 whole tree, because someone hunting for a key by name should not have to guess which
 group it was filed under.
@@ -234,6 +240,7 @@ val badge = store.overriddenCount(tree) // for a badge on a group row
 
 val value = store.value(entry) // the value in effect
 val isOverridden = store.isOverridden(entry)
+val from = store.sourceName(entry) // "Preview" when overridden, the host's source, or null for the default
 store.setValue(entry, FlagValueBox.Bool(true)) // suspends: writes go to the source off the main thread
 store.reset(entry)
 store.resetAll()

@@ -3,7 +3,7 @@
 
 // region snippet: companion-install
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
     implementation("com.andyyhope.featureflag:featureflag-ui")
 
     implementation(platform("androidx.compose:compose-bom:2026.01.00"))

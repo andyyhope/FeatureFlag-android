@@ -4,9 +4,11 @@ import app.cash.turbine.test
 import com.andyyhope.featureflag.android.bridge.FlagBridgeConnection
 import com.andyyhope.featureflag.android.bridge.FlagBridgeException
 import com.andyyhope.featureflag.schema.FlagSchema
+import com.andyyhope.featureflag.signals.FlagSignal
 import com.andyyhope.featureflag.ui.editing.CompanionSchemas
 import com.andyyhope.featureflag.values.FlagKey
 import com.andyyhope.featureflag.values.FlagValueBox
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -18,18 +20,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import java.util.concurrent.Executors
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 // The session's states and its schema reload, which ports Swift's FlagSchemaReloadTests and the
@@ -284,6 +290,217 @@ class FlagCompanionSessionTest {
         assertTrue(host.opened.single().closed)
     }
 
+    // The host republishing its schema
+
+    @Test
+    fun anAnnouncedSchemaWithANewApplicationNameReplacesTheStore() = runTest {
+        // An environment switch: the host relaunched and republished under a new name while the companion stayed open.
+        val production = schema.copy(applicationName = "Demo · Production")
+        val staging = schema.copy(applicationName = "Demo · Staging")
+        val host = Host(FlagBridgeConnection.Connected(production), FlagBridgeConnection.Connected(staging))
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        host.announce()
+        runCurrent()
+
+        assertEquals("Demo · Staging", assertIs<FlagCompanionState.Ready>(session.state.value).store.schema.applicationName)
+    }
+
+    @Test
+    fun anAnnouncedSchemaWithNewEffectiveValuesReplacesTheStore() = runTest {
+        val bundled = schema.copy(flags = listOf(flag("one").copy(effectiveValue = FlagValueBox.Bool(true), effectiveSource = "Bundled")))
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(bundled))
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        host.announce()
+        runCurrent()
+
+        val store = assertIs<FlagCompanionState.Ready>(session.state.value).store
+        assertEquals(FlagValueBox.Bool(true), store.value(store.schema.flags.single()))
+        assertEquals("Bundled", store.sourceName(store.schema.flags.single()))
+    }
+
+    @Test
+    fun theHostIsWatchedOnceFromTheFirstConnectionAndUntilClose() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(grown))
+        val session = session(host)
+        session.start()
+        assertEquals(0, host.watches)
+        runCurrent()
+        assertEquals(1, host.watches)
+
+        session.onForeground()
+        runCurrent()
+        assertEquals(1, host.watches, "a replaced store must not watch the host again")
+
+        session.close()
+        assertTrue(host.watchClosed)
+    }
+
+    @Test
+    fun aHostThatCannotBeWatchedStillReconnectsOnResume() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(grown))
+        host.watchable = false
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        session.onForeground()
+        runCurrent()
+
+        assertEquals(grown, assertIs<FlagCompanionState.Ready>(session.state.value).store.schema)
+    }
+
+    @Test
+    fun aWatchThatCouldNotStartIsTriedAgainOnTheNextConnection() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(grown))
+        host.watchable = false
+        val session = session(host)
+        session.start()
+        runCurrent()
+        assertEquals(1, host.watches)
+
+        host.watchable = true
+        session.onForeground()
+        runCurrent()
+        assertEquals(2, host.watches)
+
+        host.announce()
+        runCurrent()
+        assertEquals(3, host.connects, "the second watch hears the host")
+    }
+
+    @Test
+    fun anAnnouncementDuringAConnectionReadsTheSchemaAgainAfterIt() = runTest {
+        // The connection under way may have read the schema from before the announcement.
+        val host = Host(
+            FlagBridgeConnection.Connected(schema),
+            FlagBridgeConnection.Connected(schema),
+            FlagBridgeConnection.Connected(grown),
+        )
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val gate = CompletableDeferred<Unit>()
+        host.gate = gate
+        session.onForeground()
+        runCurrent()
+
+        host.announce()
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(3, host.connects)
+        assertEquals(grown, assertIs<FlagCompanionState.Ready>(session.state.value).store.schema)
+    }
+
+    @Test
+    fun anAnnouncementWithNothingChangedKeepsTheStore() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val before = assertIs<FlagCompanionState.Ready>(session.state.value)
+
+        host.announce()
+        runCurrent()
+
+        assertSame(before, session.state.value)
+        assertEquals(2, host.connects)
+    }
+
+    // Signals
+
+    @Test
+    fun aSignalReloadsTheSchemaOnceTheHostHasSettled() = runTest {
+        // The host switches environment on the signal: it replies, restarts, and republishes under a new name.
+        val staging = schema.copy(applicationName = "Demo · Staging")
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(staging))
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        session.onSignalSent()
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE - 1.milliseconds)
+        runCurrent()
+        assertEquals(1, host.connects, "reconnecting at once would reach the host before it restarted")
+
+        advanceTimeBy(2.milliseconds)
+        runCurrent()
+
+        assertEquals(2, host.connects)
+        assertEquals("Demo · Staging", assertIs<FlagCompanionState.Ready>(session.state.value).store.schema.applicationName)
+    }
+
+    @Test
+    fun signalsInQuickSuccessionReloadOnce() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        session.onSignalSent()
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE / 2)
+        session.onSignalSent()
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(2, host.connects)
+    }
+
+    @Test
+    fun sendingThroughTheSessionReloadsAfterTheSignal() = runTest {
+        // What FlagCompanionViewModel.send does: the signal goes out, then the session reloads.
+        val staging = schema.copy(applicationName = "Demo · Staging")
+        val host = Host(FlagBridgeConnection.Connected(schema), FlagBridgeConnection.Connected(staging))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val sent = mutableListOf<FlagSignal>()
+        val send = session.reloadingAfter(backgroundScope) { signal, _ -> sent.add(signal) }
+
+        assertTrue(send(Ping.Ping, Duration.ZERO))
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(listOf<FlagSignal>(Ping.Ping), sent)
+        assertEquals("Demo · Staging", assertIs<FlagCompanionState.Ready>(session.state.value).store.schema.applicationName)
+    }
+
+    @Test
+    fun aSendThatThrowsSchedulesNoReload() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+        val send = session.reloadingAfter(backgroundScope) { _, _ -> throw IllegalStateException("refused") }
+
+        assertFailsWith<IllegalStateException> { send(Ping.Ping, Duration.ZERO) }
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(1, host.connects)
+    }
+
+    @Test
+    fun closingCancelsAReloadAfterASignal() = runTest {
+        val host = Host(FlagBridgeConnection.Connected(schema))
+        val session = session(host)
+        session.start()
+        runCurrent()
+
+        session.onSignalSent()
+        session.close()
+        advanceTimeBy(FlagCompanionSession.SIGNAL_SETTLE * 2)
+        runCurrent()
+
+        assertEquals(1, host.connects)
+    }
+
     // The banner
 
     @Test
@@ -423,6 +640,8 @@ class FlagCompanionSessionTest {
 
     // Helpers
 
+    private enum class Ping : FlagSignal { Ping }
+
     /** A host that answers each connect with the next of [connections], then keeps giving the last. */
     private class Host(vararg connections: FlagBridgeConnection, val values: Map<FlagKey, FlagValueBox> = emptyMap()) {
         private val answers = ArrayDeque(connections.toList())
@@ -430,9 +649,30 @@ class FlagCompanionSessionTest {
         val opened = mutableListOf<FakeCompanionSource>()
         var openFailure: FlagBridgeException? = null
 
+        /** When set, each connect waits for it after taking its answer, as a slow host would. */
+        var gate: CompletableDeferred<Unit>? = null
+        var watchable = true
+        var watches = 0
+        var watchClosed = false
+        private var onRepublish: (() -> Unit)? = null
+
         suspend fun connect(): FlagBridgeConnection {
             connects++
-            return if (answers.size > 1) answers.removeFirst() else answers.first()
+            val answer = if (answers.size > 1) answers.removeFirst() else answers.first()
+            gate?.await()
+            return answer
+        }
+
+        fun watch(onRepublish: () -> Unit): AutoCloseable? {
+            watches++
+            if (!watchable) return null
+            this.onRepublish = onRepublish
+            return AutoCloseable { watchClosed = true }
+        }
+
+        /** What publishSchema(context) does: tell a watching companion the schema was republished. */
+        fun announce() {
+            checkNotNull(onRepublish) { "nothing is watching" }()
         }
 
         suspend fun open(schema: FlagSchema): CompanionSource {
@@ -442,7 +682,7 @@ class FlagCompanionSessionTest {
     }
 
     private fun TestScope.session(host: Host) =
-        FlagCompanionSession(host::connect, host::open, backgroundScope, StandardTestDispatcher(testScheduler))
+        FlagCompanionSession(host::connect, host::open, backgroundScope, StandardTestDispatcher(testScheduler), host::watch)
 
     private fun flag(key: String) = CompanionSchemas.entry(key, listOf(key), key, FlagValueBox.Bool(false))
 }

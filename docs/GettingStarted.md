@@ -19,8 +19,8 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
-    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
+    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
 
     implementation("com.andyyhope.featureflag:featureflag-android")
     implementation("com.andyyhope.featureflag:featureflag-bridge")
@@ -29,8 +29,8 @@ dependencies {
 }
 ```
 
-0.1.0 is not on Maven Central yet. Until it is, build it from a clone of this repository
-with `./gradlew publishToMavenLocal -PVERSION_NAME=0.1.0`, and add `mavenLocal()` to your
+0.1.1 is not on Maven Central yet. Until it is, build it from a clone of this repository
+with `./gradlew publishToMavenLocal -PVERSION_NAME=0.1.1`, and add `mavenLocal()` to your
 build's repositories. Building from source needs an Android SDK: put `sdk.dir=<path>` in
 `local.properties`, or set `ANDROID_HOME`.
 
@@ -169,7 +169,7 @@ Then its dependencies:
 <!-- snippet: companion-install -->
 ```kts
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
     implementation("com.andyyhope.featureflag:featureflag-ui")
 
     implementation(platform("androidx.compose:compose-bom:2026.01.00"))

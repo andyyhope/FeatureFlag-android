@@ -38,7 +38,16 @@ public data class FlagSchema(
     /** Every group, so the editor can label its sections. */
     public val groups: List<Group> = emptyList(),
 ) {
-    /** One flag, keyed as it is stored. */
+    /**
+     * One flag, keyed as it is stored.
+     *
+     * @property effectiveValue what the flag read beneath the host's overrides when the schema was
+     *   published, when a source other than the compiled default supplied it: a bundled or remote
+     *   config, say. A companion shows it while the flag has no override. Null when only the default
+     *   applies, and in a schema built with [of] or published by an older host.
+     * @property effectiveSource the name of the source that supplied [effectiveValue], such as
+     *   "Remote". Null exactly when [effectiveValue] is.
+     */
     public data class Entry(
         public val key: FlagKey,
         public val propertyPath: List<String>,
@@ -48,6 +57,8 @@ public data class FlagSchema(
         public val cases: List<FlagValueBox>? = null,
         public val remoteKey: String? = null,
         public val recordShape: List<FlagRecordField>? = null,
+        public val effectiveValue: FlagValueBox? = null,
+        public val effectiveSource: String? = null,
     )
 
     /** One nested container. Groups namespace their children and nothing else. */
@@ -87,10 +98,11 @@ public data class FlagSchema(
 
     /** The document, exactly as Apple's `JSONSerialization` writes it. */
     public fun jsonBytes(): ByteArray {
-        // A non-finite default has no JSON spelling; name the flag rather than fail somewhere deeper.
-        flags.firstOrNull { it.defaultValue.containsNonFiniteNumber }?.let {
-            throw FlagSerializationException.NonFiniteNumber(it.key)
+        // A non-finite value has no JSON spelling; name the flag rather than fail somewhere deeper.
+        val nonFinite = flags.firstOrNull { entry ->
+            entry.defaultValue.containsNonFiniteNumber || entry.effectiveValue?.containsNonFiniteNumber == true
         }
+        nonFinite?.let { throw FlagSerializationException.NonFiniteNumber(it.key) }
         return JsonWriter.prettyBytes(toJson())
     }
 
@@ -248,6 +260,10 @@ public data class FlagSchema(
             val type = typeName?.let(FlagValueType::parse)
             if (key == null || typeName == null || type == null) malformed("flag entry is missing a key or value type")
             val default = fields["defaultValue"]?.toBox(type) ?: malformed("flag '$key' has a default that is not a $typeName")
+            // Only a hint for the editor, so one that cannot be read, or that names no source, is
+            // dropped rather than refused: the two fields are present together or not at all.
+            val effectiveSource = text(fields["effectiveSource"])
+            val effective = effectiveSource?.let { fields["effectiveValue"]?.toBox(type) }
             return Entry(
                 key = FlagKey(key),
                 propertyPath = strings(fields["propertyPath"]) ?: listOf(key),
@@ -257,6 +273,8 @@ public data class FlagSchema(
                 cases = (fields["cases"] as? JsonValue.Array)?.items?.mapNotNull { it.toBox(type) },
                 remoteKey = text(fields["remoteKey"]),
                 recordShape = objects(fields["recordShape"])?.mapNotNull(::recordField),
+                effectiveValue = effective,
+                effectiveSource = effective?.let { effectiveSource },
             )
         }
 
@@ -305,6 +323,9 @@ private fun FlagSchema.Entry.toJson(): JsonValue = JsonValue.Object(
         cases?.let { cases -> put("cases", JsonValue.Array(cases.map { it.toJson() })) }
         remoteKey?.let { put("remoteKey", JsonValue.Text(it)) }
         recordShape?.let { shape -> put("recordShape", JsonValue.Array(shape.map { it.toJson() })) }
+        // Written only when present, so a schema built with FlagSchema.of reads exactly as Swift writes it.
+        effectiveValue?.let { put("effectiveValue", it.toJson()) }
+        effectiveSource?.let { put("effectiveSource", JsonValue.Text(it)) }
     },
 )
 

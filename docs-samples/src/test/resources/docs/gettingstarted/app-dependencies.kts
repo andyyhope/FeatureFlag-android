@@ -7,8 +7,8 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
-    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.0"))
+    implementation(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
+    ksp(platform("com.andyyhope.featureflag:featureflag-bom:0.1.1"))
 
     implementation("com.andyyhope.featureflag:featureflag-android")
     implementation("com.andyyhope.featureflag:featureflag-bridge")

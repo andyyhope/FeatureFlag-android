@@ -58,9 +58,12 @@ internal fun FlagRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        val isOverridden = store.isOverridden(entry)
         FlagRowHeader(
             entry = entry,
-            isOverridden = store.isOverridden(entry),
+            isOverridden = isOverridden,
+            // Where the value comes from when it is not the companion's own: a host config, say.
+            hostSource = if (isOverridden) null else store.sourceName(entry),
             onReset = { writer.write { store.reset(entry) } },
         )
         when (val kind = entry.editorKind) {
@@ -134,7 +137,7 @@ internal fun FlagRow(
 }
 
 @Composable
-private fun FlagRowHeader(entry: FlagSchema.Entry, isOverridden: Boolean, onReset: () -> Unit) {
+private fun FlagRowHeader(entry: FlagSchema.Entry, isOverridden: Boolean, hostSource: String?, onReset: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(text = entry.description, style = MaterialTheme.typography.bodyLarge)
@@ -143,6 +146,13 @@ private fun FlagRowHeader(entry: FlagSchema.Entry, isOverridden: Boolean, onRese
                 style = MaterialTheme.typography.labelSmall.monospaced(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hostSource != null) {
+                Text(
+                    text = FlagStrings.fromSource(hostSource),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         if (isOverridden) {
             // The most useful thing to see at a glance: what has been changed from what the app ships with.
